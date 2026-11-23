@@ -11,6 +11,8 @@ if errorlevel 1 goto PATH_ERROR
 set "ROOT=%CD%"
 set "ENTRY=%ROOT%\main.py"
 if not exist "%ENTRY%" goto FILE_ERROR
+set "SITE=%ROOT%\index.html"
+if not exist "%SITE%" goto SITE_ERROR
 
 set "PY_EXE="
 set "PY_ARG="
@@ -43,6 +45,8 @@ goto CHECK_PY
 if errorlevel 1 goto PY_ERROR
 "%PY_EXE%" %PY_ARG% "%ENTRY%" init
 if errorlevel 1 goto INIT_ERROR
+rem Open the local static website without a server or network port.
+call :OPEN_SITE
 
 :MENU
 cls
@@ -51,26 +55,35 @@ echo              KYUREIKA CORE
 echo ============================================
 echo Root: "%ROOT%"
 echo.
-echo 1. Core status
-echo 2. View memories
-echo 3. Add memory
-echo 4. Personality context
-echo 5. Diagnostics
-echo 6. Run tests
-echo 7. Backup SQLite
-echo 8. Exit
+echo 1. Open website
+echo 2. Core status
+echo 3. View memories
+echo 4. Add memory
+echo 5. Personality context
+echo 6. Diagnostics
+echo 7. Run tests
+echo 8. Backup SQLite
+echo 9. Exit
 echo.
-choice /c 12345678 /n /m "Select [1-8]: "
-if errorlevel 8 goto EXIT_OK
-if errorlevel 7 goto BACKUP
-if errorlevel 6 goto TESTS
-if errorlevel 5 goto DIAGNOSTICS
-if errorlevel 4 goto CONTEXT
-if errorlevel 3 goto REMEMBER
-if errorlevel 2 goto MEMORIES
-if errorlevel 1 goto STATUS
+choice /c 123456789 /n /m "Select [1-9]: "
+if errorlevel 9 goto EXIT_OK
+if errorlevel 8 goto BACKUP
+if errorlevel 7 goto TESTS
+if errorlevel 6 goto DIAGNOSTICS
+if errorlevel 5 goto CONTEXT
+if errorlevel 4 goto REMEMBER
+if errorlevel 3 goto MEMORIES
+if errorlevel 2 goto STATUS
+if errorlevel 1 goto WEBSITE
 goto MENU
 
+:WEBSITE
+call :OPEN_SITE
+goto MENU
+:OPEN_SITE
+start "" "%SITE%"
+if errorlevel 1 echo WARNING: Browser could not open the local website.
+exit /b 0
 :STATUS
 "%PY_EXE%" %PY_ARG% "%ENTRY%" status
 goto WAIT_MENU
@@ -110,6 +123,9 @@ goto MENU
 
 :PATH_ERROR
 echo ERROR: Cannot access the launcher directory.
+goto FAIL
+:SITE_ERROR
+echo ERROR: index.html not found next to Kyureika.bat.
 goto FAIL
 :FILE_ERROR
 echo ERROR: main.py not found next to Kyureika.bat.
