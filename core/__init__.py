@@ -1,0 +1,1 @@
+"""Kyūreika core package."""
