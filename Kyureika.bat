@@ -1,5 +1,8 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
+rem UTF-8 for Cyrillic file names and Python input/output.
+set "PYTHONUTF8=1"
+set "PYTHONIOENCODING=utf-8"
 title KYUREIKA - Safe Launcher
 rem Keep this file beside main.py. No network ports are opened by this launcher.
 rem Use quoted paths and avoid parenthesized blocks around user-controlled values.
@@ -11,13 +14,19 @@ if not exist "%ENTRY%" goto FILE_ERROR
 
 set "PY_EXE="
 set "PY_ARG="
-if exist "%ROOT%\.venv\Scripts\python.exe" goto USE_VENV
+if exist "%ROOT%\.venv\Scripts\python.exe" goto TRY_VENV
 where py >nul 2>&1
 if not errorlevel 1 goto TRY_PY
 goto TRY_PYTHON
-:USE_VENV
+:TRY_VENV
+"%ROOT%\.venv\Scripts\python.exe" -c "import sys; assert sys.version_info >= (3,10)" >nul 2>&1
+if errorlevel 1 goto TRY_PY_LAUNCHER
 set "PY_EXE=%ROOT%\.venv\Scripts\python.exe"
 goto CHECK_PY
+:TRY_PY_LAUNCHER
+where py >nul 2>&1
+if not errorlevel 1 goto TRY_PY
+goto TRY_PYTHON
 :TRY_PY
 py -3 -c "import sys; assert sys.version_info >= (3,10)" >nul 2>&1
 if errorlevel 1 goto TRY_PYTHON
@@ -86,6 +95,7 @@ echo SQLite integrity:
 "%PY_EXE%" %PY_ARG% -c "from core.database import DB_PATH,initialize,connect; initialize(); c=connect(DB_PATH); db=c.__enter__(); print('Database:', DB_PATH); print('Integrity:', db.execute('PRAGMA integrity_check').fetchone()[0]); c.__exit__(None,None,None)"
 echo.
 echo Network ports: not used by current local core.
+echo No port conflicts possible in this version.
 goto WAIT_MENU
 :TESTS
 "%PY_EXE%" %PY_ARG% -m unittest discover -s "%ROOT%\tests"
