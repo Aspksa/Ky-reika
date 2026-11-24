@@ -176,6 +176,8 @@ def prepare(message,path=DB_PATH):
     context['knowledge_transfer']=transfer_experience(message,context)
     from .intellectual_identity import current as intellectual_identity
     context['intellectual_identity']=intellectual_identity(path)
+    from .concepts import relevant as relevant_concepts
+    context["concepts"]=relevant_concepts(message,path)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     from .metacognition import assess as assess_thinking, record as record_thinking, apply as apply_thinking
