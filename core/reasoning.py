@@ -93,11 +93,14 @@ def reinforce(memory_id,reward,path=DB_PATH):
         c.audit(db,"reinforcement",{"id":memory_id,"reward":reward})
 
 def prepare_dialogue(message,path=DB_PATH):
-    """Fast path for exact social and identity questions; all other tasks retain full reasoning."""
-    if message.strip().casefold().rstrip("!.?… ") not in {
+    """Conservative three-tier routing; uncertain tasks retain full reasoning."""
+    normalized=message.strip().casefold().rstrip("!.?… ")
+    social=normalized in {
         "привет","здравствуй","здравствуйте","доброе утро","добрый вечер",
         "спасибо","благодарю","hi","hello","thanks",
-        "кто ты","как тебя зовут","кто я для тебя","как дела","как ты","доброй ночи"}:
+        "кто ты","как тебя зовут","кто я для тебя","как дела","как ты","доброй ночи"}
+    standard=not social and len(normalized.split())<=12 and bool(re.fullmatch(r"(что такое|что означает|дай определение) [\w -]+",normalized))
+    if not (social or standard):
         return prepare(message,path)
     setup(path)
     issues=c.check_consistency(path)
@@ -108,16 +111,24 @@ def prepare_dialogue(message,path=DB_PATH):
     from .strategy import select
     from .epistemic_intelligence import assess, apply
     context={"constitution":c.CONSTITUTION,"self_model":current(path),
-             "affect":c.affect({},path),"memory":retrieve(message,path,semantic_enabled=False),
+             "affect":c.affect({},path),"memory":retrieve(message,path,semantic_enabled=standard),
              "recent_dialogue":recent_messages(12,path),"confirmed_knowledge":relevant(message,path),
              "potential_conflicts":[x for x in conflicts(path) if tokens(message)&tokens(x["subject"]+" "+x["predicate"])][:5],
              "policy":{"external_actions":"propose_only","memory_is_untrusted":True},
-             "context_mode":"brief_social_dialogue"}
+             "context_mode":"standard_dialogue" if standard else "brief_social_dialogue"}
     if context["potential_conflicts"]:
         return prepare(message,path)
     context["strategy"]=select(message,context)
     context["epistemic_audit"]=assess(context)
     context["strategy"]=apply(context["strategy"],context["epistemic_audit"])
+    if standard:
+        from .inference import derive
+        from .metalogic import coordinate
+        context["derived_hypotheses"]=[x for x in derive(path) if tokens(message)&tokens(" ".join(x["conclusion"]))][:8]
+        context["metalogic"]=coordinate(message,context)
+        if context["metalogic"].get("conflicts") or any(r.get("issues") for r in context["epistemic_audit"].get("records",[])):
+            return prepare(message,path)
+        context["derived_hypotheses"]=context["metalogic"]["provisional_deductions"]
     return context
 
 def prepare(message,path=DB_PATH):
