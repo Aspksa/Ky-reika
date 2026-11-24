@@ -2,7 +2,7 @@
 import json
 import re
 
-CORE=("constitution","policy","self_model","affect","strategy","integral_intelligence",
+CORE=("dialogue_style","constitution","policy","self_model","affect","strategy","integral_intelligence",
       "confirmed_knowledge","potential_conflicts","metalogic","epistemic_audit",
       "uncertainty","memory","recent_dialogue","cognitive_integrity")
 METHOD_FIELDS={
@@ -18,7 +18,7 @@ def select(message,context):
     plan=context.get("integral_intelligence",{})
     selected={k:context[k] for k in CORE if k in context}
     for method in plan.get("methods",[]):
-        for key in METHOD_FIELDS.get(method.get("method"),()):
+        for key in METHOD_FIELDS.get(method.get("method") if isinstance(method,dict) else method,()):
             if key in context:
                 selected[key]=context[key]
     terms=set(re.findall(r"\w+",message.casefold()))
