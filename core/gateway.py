@@ -5,7 +5,8 @@ import logging
 import re
 from queue import Queue, Full
 from threading import Thread, Lock
-from time import monotonic
+from time import monotonic, sleep
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from urllib.parse import urlparse
 from .resource_priority import wait_for_idle
@@ -141,27 +142,36 @@ def stream_chat(message,path=DB_PATH,*,progress=None):
                 headers={"Authorization":"Bearer "+key,"Content-Type":"application/json","Accept":"text/event-stream"})
     parts=[]
     finished=False
-    with urlopen(req,timeout=180) as response:
-        for raw in response:
-            line=raw.decode("utf-8").strip()
-            if not line.startswith("data:"):
-                continue
-            data=line[5:].strip()
-            if data=="[DONE]":
-                finished=True
-                break
-            event=json.loads(data)
-            if event.get("error"):
-                raise RuntimeError("Cloud stream error")
-            for choice in event.get("choices",[]):
-                if choice.get("index",0)!=0:
-                    continue
-                chunk=choice.get("delta",{}).get("content")
-                if isinstance(chunk,str) and chunk:
-                    parts.append(chunk)
-                    yield chunk
-                if choice.get("finish_reason") in ("stop","length"):
-                    finished=True
+    for attempt in range(3):
+        try:
+            with urlopen(req,timeout=180) as response:
+                for raw in response:
+                    line=raw.decode("utf-8").strip()
+                    if not line.startswith("data:"):
+                        continue
+                    data=line[5:].strip()
+                    if data=="[DONE]":
+                        finished=True
+                        break
+                    event=json.loads(data)
+                    if event.get("error"):
+                        raise RuntimeError("Cloud stream error")
+                    for choice in event.get("choices",[]):
+                        if choice.get("index",0)!=0:
+                            continue
+                        chunk=choice.get("delta",{}).get("content")
+                        if isinstance(chunk,str) and chunk:
+                            parts.append(chunk)
+                            yield chunk
+                        if choice.get("finish_reason") in ("stop","length"):
+                            finished=True
+            break
+        except (URLError, TimeoutError, ConnectionError) as exc:
+            if parts or finished or attempt==2 or (isinstance(exc,HTTPError) and exc.code not in (429,502,503,504)):
+                raise
+            if progress:
+                progress("reconnecting")
+            sleep(2**attempt)
     if not finished or not "".join(parts).strip():
         raise RuntimeError("Incomplete or empty model stream")
     reasoning.finish(message,"".join(parts),path,strategy=context["strategy"])
