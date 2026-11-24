@@ -4,6 +4,12 @@ from importlib import import_module
 from .database import connect, now
 
 def execute(stages,path,record=None):
+    stages=list(stages)
+    seen=set()
+    for name,_,dependencies in stages:
+        if name in seen or any(dep not in seen for dep in dependencies):
+            raise ValueError('Invalid maintenance stage ordering: '+name)
+        seen.add(name)
     outcomes={}
     for name,action,dependencies in stages:
         if any(outcomes.get(dep)!="ok" for dep in dependencies):
