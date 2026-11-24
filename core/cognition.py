@@ -148,12 +148,40 @@ def sleep_once(path=DB_PATH):
             days=max(0,(datetime.now(timezone.utc)-datetime.fromisoformat(r["touched"])).total_seconds()/86400)
             score=r["salience"]*math.exp(-days*r["decay_rate"])
             level=r["level"]
-            if score<.1 and days>=30:
+            if score<.1 and (datetime.now(timezone.utc)-datetime.fromisoformat(db.execute('SELECT created_at FROM memories WHERE id=?',(r['id'],)).fetchone()[0])).total_seconds()>=30*86400:
                 level="archive"
-            elif level in ("working","short") and days>=1:
+            elif level in ("working","short") and (datetime.now(timezone.utc)-datetime.fromisoformat(db.execute("SELECT created_at FROM memories WHERE id=?",(r["id"],)).fetchone()[0])).total_seconds()>=86400:
                 level="episodic"
             if level!=r["level"]:
                 audit(db,"memory_transition",{"id":r["id"],"from":r["level"],"to":level})
             db.execute("UPDATE cognition_memory SET salience=?,level=?,touched=? WHERE id=?",(score,level,now()))
     affect({},path)
     return reflect(path)
+
+
+def check_consistency(path=DB_PATH):
+    """Check explicit stored state, not hidden model activations."""
+    setup(path)
+    with connect(path) as db:
+        scores=dict(db.execute("SELECT trait,score FROM personality").fetchall())
+        issues=[]
+        if set(scores)!=set(TRAITS):
+            issues.append("Unexpected or missing personality traits")
+        if any(not 0<=v<=100 for v in scores.values()):
+            issues.append("Invalid trait score")
+        if db.execute("SELECT 1 FROM cognition_memory WHERE level NOT IN ('working','short','episodic','semantic','archive') LIMIT 1").fetchone():
+            issues.append("Invalid memory level")
+        return issues
+
+def record_conflict(first, second, confidence, path=DB_PATH):
+    """Record an explicitly identified conflict without deleting evidence."""
+    confidence=unit(confidence)
+    if first==second:
+        raise ValueError("Distinct memories required")
+    setup(path)
+    with connect(path) as db:
+        for i in (first,second):
+            if not db.execute("SELECT 1 FROM cognition_memory WHERE id=?",(i,)).fetchone():
+                raise ValueError("Unknown memory")
+            db.execute("UPDATE cognition_memory SET contradiction_score=max(contradiction_score,?) WHERE id=?",(confidence,i))
+        audit(db,"memory_conflict",{"first":first,"second":second,"confidence":confidence})
