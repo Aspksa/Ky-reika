@@ -39,6 +39,8 @@ def consolidate(path=DB_PATH):
     refresh_self(path)
     from .background_reasoning import run as background_review
     background_review(path)
+    from .deep_inquiry import advance
+    advance(path)
     from .research_goals import refresh as refresh_goals
     refresh_goals(path)
     return proposals
