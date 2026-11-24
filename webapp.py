@@ -36,9 +36,18 @@ class Handler(BaseHTTPRequestHandler):
     def reply(self,obj,status=200):
         self.send_data(json.dumps(obj,ensure_ascii=False).encode(),"application/json; charset=utf-8",status)
     def do_GET(self):
-        if self.path=="/":
-            html=(ROOT/"index.html").read_text(encoding="utf-8").replace("</head>",'<meta name="session-token" content="'+TOKEN+'"></head>')
+        if self.path in ("/","/analytics"):
+            html=(ROOT/("index.html" if self.path=="/" else "analytics.html")).read_text(encoding="utf-8").replace("</head>",'<meta name="session-token" content="'+TOKEN+'"></head>')
             self.send_data(html.encode(),"text/html; charset=utf-8")
+        elif self.path=="/api/statistics":
+            if self.headers.get("X-Session-Token")!=TOKEN:
+                return self.reply({"error":"Forbidden"},403)
+            from core.statistics import report
+            try:
+                return self.reply(report())
+            except Exception:
+                logging.exception("Statistics unavailable")
+                return self.reply({"error":"Statistics unavailable"},503)
         elif self.path=="/api/kernel":
             if self.headers.get("X-Session-Token")!=TOKEN:
                 return self.reply({"error":"Forbidden"},403)
