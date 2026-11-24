@@ -3,15 +3,57 @@ import os
 import json
 import logging
 import re
+from queue import Queue, Full
+from threading import Thread, Lock
 from time import monotonic
 from urllib.request import Request, urlopen
 from urllib.parse import urlparse
 from . import reasoning
 from .database import DB_PATH
 
-def request(endpoint, payload=None):
+_learning_queue=Queue(maxsize=128)
+_learning_lock=Lock()
+_learning_worker=None
+
+def _learn_loop():
+    while True:
+        message,path,configuration=_learning_queue.get()
+        try:
+            if configuration!=tuple(os.environ.get(k,"") for k in ("CLOUD_API_BASE","CLOUD_API_KEY","CLOUD_MODEL")):
+                logging.warning("Skipping learning job after model configuration changed")
+                continue
+            from .extraction import extract
+            base,key,model=configuration
+            def bound_request(endpoint,payload):
+                return request(endpoint,payload,configuration=(base,key))
+            extract(message,bound_request,model,path)
+        except Exception:
+            logging.warning("Background knowledge extraction failed")
+        finally:
+            _learning_queue.task_done()
+
+def enqueue_learning(message,path):
+    global _learning_worker
+    if os.environ.get("CLOUD_EXTRACT_FACTS","1")!="1":
+        return
+    configuration=tuple(os.environ.get(k,"") for k in ("CLOUD_API_BASE","CLOUD_API_KEY","CLOUD_MODEL"))
+    if not all(configuration):
+        return
+    with _learning_lock:
+        if _learning_worker is None or not _learning_worker.is_alive():
+            _learning_worker=Thread(target=_learn_loop,daemon=True,name="knowledge-extraction")
+            _learning_worker.start()
+    try:
+        _learning_queue.put_nowait((message,path,configuration))
+    except Full:
+        logging.warning("Background learning queue full; dialogue retained without extraction")
+
+def request(endpoint, payload=None, *, configuration=None):
     base=os.environ.get("CLOUD_API_BASE","").rstrip("/")
     key=os.environ.get("CLOUD_API_KEY","")
+    if configuration is not None:
+        base,key=configuration
+        base=base.rstrip("/")
     parsed=urlparse(base)
     if parsed.scheme!="https" or not parsed.hostname or not key:
         raise RuntimeError("Configure CLOUD_API_BASE (HTTPS) and CLOUD_API_KEY")
@@ -56,16 +98,9 @@ def chat(message,path=DB_PATH):
             from .decision import review
             answer=review(message,answer,request,model,path)
         except Exception:
-            import logging
             logging.getLogger(__name__).warning("Optional answer review failed")
     reasoning.finish(message,answer,path,strategy=context['strategy'])
-    if os.environ.get("CLOUD_EXTRACT_FACTS","0")=="1":
-        try:
-            from .extraction import extract
-            extract(message,request,model,path)
-        except Exception:
-            import logging
-            logging.getLogger(__name__).warning("Optional knowledge extraction failed")
+    enqueue_learning(message,path)
     logging.info("Chat completed in %.2fs",monotonic()-started)
     return answer
 
@@ -111,3 +146,4 @@ def stream_chat(message,path=DB_PATH):
     if not finished or not "".join(parts).strip():
         raise RuntimeError("Incomplete or empty model stream")
     reasoning.finish(message,"".join(parts),path,strategy=context["strategy"])
+    enqueue_learning(message,path)
