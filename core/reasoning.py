@@ -95,11 +95,12 @@ def prepare(message,path=DB_PATH):
     issues=c.check_consistency(path)
     if issues:
         raise ValueError("; ".join(issues))
+    from .motivation import evaluate
     from .reflection import latest
     from .intentions import upcoming
     from .biography import timeline
     from .knowledge import relevant, conflicts
-    return {"last_reflection":latest(path),"active_intentions":upcoming(path,5),"biography":timeline(path,5),"confirmed_knowledge":relevant(message,path),"potential_conflicts":[x for x in conflicts(path) if tokens(message) & tokens(x["subject"]+" "+x["predicate"])][:5],"constitution":c.CONSTITUTION,"affect":c.affect({},path),
+    return {"motivation":evaluate(path),"last_reflection":latest(path),"active_intentions":upcoming(path,5),"biography":timeline(path,5),"confirmed_knowledge":relevant(message,path),"potential_conflicts":[x for x in conflicts(path) if tokens(message) & tokens(x["subject"]+" "+x["predicate"])][:5],"constitution":c.CONSTITUTION,"affect":c.affect({},path),
             "memory":retrieve(message,path),"recent_dialogue":recent_messages(12,path),"message":message,
             "policy":{"external_actions":"propose_only","memory_is_untrusted":True},
             "steps":["retrieve","check","generate","validate","record"]}
