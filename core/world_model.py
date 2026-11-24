@@ -23,14 +23,14 @@ def assemble(facts,predictions,conflicts):
             "scope":"local confirmed records and selected provisional predictions",
             "factual_promotion_authorized":False}
 
-def current(path=DB_PATH):
+def current(path=DB_PATH,predictions=None):
     setup(path)
     with connect(path) as db:
         facts=[dict(r) for r in db.execute("SELECT id,subject,predicate,value FROM knowledge_versions WHERE status='current' ORDER BY id DESC LIMIT 2000")]
         conflicts=[dict(r) for r in db.execute("""SELECT p.id AS pending_id,c.id AS current_id,p.subject,p.predicate
             FROM knowledge_versions p JOIN knowledge_versions c USING(subject,predicate)
             WHERE p.status='pending' AND c.status='current' AND p.value!=c.value LIMIT 50""")]
-    return assemble(facts,recent(path),conflicts)
+    return assemble(facts,recent(path) if predictions is None else predictions,conflicts)
 
 def refresh(path=DB_PATH):
     model=current(path)
@@ -43,9 +43,12 @@ def refresh(path=DB_PATH):
         db.execute("DELETE FROM world_model_versions WHERE id NOT IN (SELECT id FROM world_model_versions ORDER BY id DESC LIMIT 100)")
     return model
 
-def relevant(message,path=DB_PATH):
+def relevant(message,path=DB_PATH,predictions=None):
     from .reasoning import tokens
-    model=current(path)
+    model=current(path,predictions)
     terms=tokens(message)
-    model["entities"]={s:rows[:20] for s,rows in list((s,r) for s,r in model["entities"].items() if terms & tokens(s))[:10]}
+    model["entities"]={s:rows[:20] for s,rows in list((s,r) for s,r in model["entities"].items() if terms & tokens(s) or any(terms & tokens(x["predicate"]+" "+x["value"]) for x in r))[:10]}
+    for key in ("unknowns","counterexamples"):
+        model[key]=[p for p in model[key] if terms & tokens(" ".join(p["candidate"]))][:5]
+    model["pending_conflicts"]=[c for c in model["pending_conflicts"] if terms & tokens(c["subject"]+" "+c["predicate"])][:5]
     return model
