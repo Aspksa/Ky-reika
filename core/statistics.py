@@ -13,7 +13,8 @@ def report(path=DB_PATH):
             aggregate,_,where=expression.partition(" WHERE ")
             metrics[key]=db.execute("SELECT "+aggregate+" FROM "+table+(" WHERE "+where if where else "")).fetchone()[0] if table in tables else None
         stages={r["stage"]:dict(r) for r in db.execute("SELECT * FROM maintenance_status")} if "maintenance_status" in tables else {}
-        return {"time":now(),"metrics":metrics,"stages":[{"stage":name,"module":module,**stages.get(name,{"status":"unobserved"})} for name,module,_,_ in STAGES]}
+        from .skill_registry import catalog
+        return {"time":now(),"metrics":metrics,"skills":catalog(db,tables,stages),"stages":[{"stage":name,"module":module,**stages.get(name,{"status":"unobserved"})} for name,module,_,_ in STAGES]}
 
 def snapshot(path=DB_PATH):
     import json
