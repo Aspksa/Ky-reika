@@ -25,6 +25,15 @@ def record(message_id,message,strategy,path=DB_PATH):
     with connect(path) as db:
         db.execute("INSERT OR IGNORE INTO strategy_usage VALUES (?,?,?)",(message_id,mode,task_type(message)))
 
+def summarize(task,rows):
+    groups={}
+    for row in rows:
+        groups.setdefault(row["mode"],[]).append(row["rating"])
+    observations=[{"mode":mode,"samples":len(values),"mean_rating":sum(values)/len(values)} for mode,values in sorted(groups.items())]
+    eligible=sorted((r for r in observations if r["samples"]>=5),key=lambda r:r["mean_rating"],reverse=True)
+    preferred=eligible[0]["mode"] if len(eligible)==2 and eligible[0]["mean_rating"]-eligible[1]["mean_rating"]>=.3 else None
+    return {"task":task,"observations":observations,"preferred":preferred}
+
 def profile(message,path=DB_PATH):
     setup(path)
     with connect(path) as db:
@@ -36,13 +45,14 @@ def profile(message,path=DB_PATH):
     return {"task":task_type(message),"observations":rows,"preferred":preferred}
 
 def adapt(strategy,message,path=DB_PATH):
-    report=profile(message,path)
+    setup(path)
     result=dict(strategy)
     from .learning_review import evaluate
     with connect(path) as db:
         rows=[dict(r) for r in db.execute("""SELECT u.mode,f.rating FROM strategy_usage u
             JOIN response_feedback f ON f.message_id=u.message_id WHERE u.task=?
             ORDER BY f.created,u.message_id""",(task_type(message),))]
+    report=summarize(task_type(message),rows)
     validation=evaluate(rows)
     result["learning_validation"]=validation
     if validation["preferred"]=="structured" and strategy["mode"]=="direct":
