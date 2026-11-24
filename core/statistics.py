@@ -13,9 +13,14 @@ def report(path=DB_PATH):
             aggregate,_,where=expression.partition(" WHERE ")
             metrics[key]=db.execute("SELECT "+aggregate+" FROM "+table+(" WHERE "+where if where else "")).fetchone()[0] if table in tables else None
         stages={r["stage"]:dict(r) for r in db.execute("SELECT * FROM maintenance_status")} if "maintenance_status" in tables else {}
+        from .personality_statistics import profile
+        personality=profile(db,tables)
+        metrics.update({"trait_"+r["name"]:r["value"] for r in personality["traits"]})
+        metrics.update({"affect_"+r["name"]:round(r["value"]*100,2) for r in personality["affect"]})
+        return_payload_personality=personality
         from .activity_log import recent
         from .skill_registry import catalog
-        return {"time":now(),"metrics":metrics,"skills":catalog(db,tables,stages),"activity":recent(db),"stages":[{"stage":name,"module":module,**stages.get(name,{"status":"unobserved"})} for name,module,_,_ in STAGES]}
+        return {"time":now(),"metrics":metrics,"personality":return_payload_personality,"skills":catalog(db,tables,stages),"activity":recent(db),"stages":[{"stage":name,"module":module,**stages.get(name,{"status":"unobserved"})} for name,module,_,_ in STAGES]}
 
 def snapshot(path=DB_PATH):
     import json
