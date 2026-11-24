@@ -135,6 +135,8 @@ def prepare(message,path=DB_PATH):
     context["derived_hypotheses"]=context["metalogic"]["provisional_deductions"]
     from .development import recent as development_thoughts
     context["background_hypotheses"]=development_thoughts(path)
+    from .thought_tree import recent as recent_thoughts
+    context["thought_tree"]=recent_thoughts(path)
     context["strategy"]=select(message,context)
     return context
 
