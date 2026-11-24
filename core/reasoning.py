@@ -139,6 +139,8 @@ def prepare(message,path=DB_PATH):
     context["thought_tree"]=recent_thoughts(path)
     from .research import agenda
     context["research_agenda"]=agenda(path)
+    from .creativity import recent as creative_ideas
+    context["creative_ideas"]=creative_ideas(path)
     context["strategy"]=select(message,context)
     return context
 
