@@ -168,6 +168,8 @@ def prepare(message,path=DB_PATH):
     context['theory_frameworks']=theory_frameworks(path)
     from .theory_review import recent as theory_reviews
     context['theory_reviews']=theory_reviews(path)
+    from .prediction_checks import recent as prediction_checks
+    context['prediction_checks']=prediction_checks(path)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     from .metacognition import assess as assess_thinking, record as record_thinking, apply as apply_thinking
