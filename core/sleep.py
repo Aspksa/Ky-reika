@@ -14,6 +14,8 @@ def consolidate(path=DB_PATH):
         cognition.audit(db,"sleep_completed",{"proposals":proposals})
     from .reflection import record
     record(path)
+    from .initiative import generate
+    generate(path)
     return proposals
 
 def start(path=DB_PATH,interval=3600):
