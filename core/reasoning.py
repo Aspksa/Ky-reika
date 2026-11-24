@@ -186,6 +186,8 @@ def prepare(message,path=DB_PATH):
     context["strategic_options"]=strategic_options(path)
     from .creative_intelligence import relevant as creative_candidates
     context["creative_candidates"]=creative_candidates(message,path)
+    from .intelligence_training import latest as training_report
+    context["intelligence_training"]=training_report(path)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     from .metacognition import assess as assess_thinking, record as record_thinking, apply as apply_thinking
