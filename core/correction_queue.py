@@ -47,9 +47,23 @@ def investigate(db):
     for row in rows:
         key="same_source_ids" if row["source"]==task["source"] else "support_ids" if row["value"]==task["value"] else "counterclaim_ids"
         evidence[key].append(row["id"])
+    evidence["alternatives"]=alternatives(task,rows)
     evidence["status"]="awaiting_verification"
     evidence["limitation"]="Different source labels do not establish independence; pending claims are not verified evidence."
     db.execute("""INSERT INTO correction_reviews VALUES (?,?,?)
         ON CONFLICT(fact_id) DO UPDATE SET evidence=excluded.evidence,updated=excluded.updated""",
         (task["id"],json.dumps(evidence),now()))
     return {"fact_id":task["id"],**evidence}
+
+def alternatives(task,rows):
+    """Competing recorded values, not invented causal explanations."""
+    groups={}
+    for row in [task,*rows]:
+        groups.setdefault(row["value"],[]).append(row["id"])
+    return {"candidates":[{"value":value,"record_ids":ids,
+                "status":"unverified_candidate",
+                "test":"Obtain a dated independent observation of this subject and predicate; compare the recorded value."}
+                for value,ids in sorted(groups.items())],
+            "unknown_possible":True,
+            "evidence_sufficient":False,
+            "reason":"Local claims alone do not establish independent verification."}
