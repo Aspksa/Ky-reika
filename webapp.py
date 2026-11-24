@@ -39,6 +39,11 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ("/","/analytics"):
             html=(ROOT/("index.html" if self.path=="/" else "analytics.html")).read_text(encoding="utf-8").replace("</head>",'<meta name="session-token" content="'+TOKEN+'"></head>')
             self.send_data(html.encode(),"text/html; charset=utf-8")
+        elif self.path=="/api/statistics/history":
+            if self.headers.get("X-Session-Token")!=TOKEN:
+                return self.reply({"error":"Forbidden"},403)
+            from core.statistics import history
+            return self.reply({"history":history(limit=10080)})
         elif self.path=="/api/statistics":
             if self.headers.get("X-Session-Token")!=TOKEN:
                 return self.reply({"error":"Forbidden"},403)

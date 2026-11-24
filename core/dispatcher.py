@@ -35,6 +35,7 @@ STAGES = (
         ("initiative","initiative","generate",("reflection","priorities")),
         ("language_learning","language_learning","refresh",()),
         ("chat_tasks","chat_tasks","process",()),
+        ("statistics","statistics","snapshot",()),
         ("backup","backup","refresh",()),
 
 )
