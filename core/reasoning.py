@@ -259,7 +259,7 @@ def prepare(message,path=DB_PATH):
     context["correction_tasks"]=correction_tasks(path)
     return context
 
-def finish(user,answer,path=DB_PATH,strategy=None):
+def finish(user,answer,path=DB_PATH,strategy=None,*,return_response_id=False):
     if not answer.strip():
         raise ValueError("Empty answer")
     from .database import connect, now
@@ -273,4 +273,4 @@ def finish(user,answer,path=DB_PATH,strategy=None):
     memory_id=learn(user,confidence=.5,path=path)
     from .biography import record
     record("dialogue","Recorded user interaction",memory_id,path=path)
-    return memory_id
+    return response_id if return_response_id else memory_id
