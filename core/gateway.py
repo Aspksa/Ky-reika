@@ -180,6 +180,7 @@ def stream_chat(message,path=DB_PATH,*,progress=None):
             sleep(2**attempt)
     if not finished or not "".join(parts).strip():
         raise RuntimeError("Incomplete or empty model stream")
-    reasoning.finish(message,"".join(parts),path,strategy=context["strategy"])
+    response_id=reasoning.finish(message,"".join(parts),path,strategy=context["strategy"],return_response_id=True)
     enqueue_learning(message,path)
     logging.info("Stream completed in %.3fs; visible characters=%d",monotonic()-started,sum(map(len,parts)))
+    return response_id
