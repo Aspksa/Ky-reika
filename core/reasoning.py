@@ -72,7 +72,14 @@ def retrieve(query,path=DB_PATH):
                 ORDER BY l.weight DESC LIMIT 3""",(i,i,i)):
                 if row["id"] not in ids and not any(x["id"]==row["id"] for x in related):
                     related.append(dict(row))
-    return {"direct":direct,"associated":related[:8]}
+    semantic=[]
+    try:
+        from .vectors import search
+        semantic=search(query,path)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning("Semantic memory unavailable; using lexical retrieval")
+    return {"direct":direct,"associated":related[:8],"semantic":semantic}
 
 def reinforce(memory_id,reward,path=DB_PATH):
     reward=c.unit(reward)
