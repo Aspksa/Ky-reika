@@ -38,7 +38,14 @@ def profile(message,path=DB_PATH):
 def adapt(strategy,message,path=DB_PATH):
     report=profile(message,path)
     result=dict(strategy)
-    if report["preferred"]=="structured" and strategy["mode"]=="direct":
+    from .learning_review import evaluate
+    with connect(path) as db:
+        rows=[dict(r) for r in db.execute("""SELECT u.mode,f.rating FROM strategy_usage u
+            JOIN response_feedback f ON f.message_id=u.message_id WHERE u.task=?
+            ORDER BY f.created,u.message_id""",(task_type(message),))]
+    validation=evaluate(rows)
+    result["learning_validation"]=validation
+    if validation["preferred"]=="structured" and strategy["mode"]=="direct":
         result["mode"]="structured"
         result["guidance"]=["Organize the response into clear reasoning and verification steps."]
     result["feedback_profile"]=report
