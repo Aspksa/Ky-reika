@@ -17,6 +17,8 @@ def refresh(path=DB_PATH):
         report=evaluate(seed=seed)
         baseline=evaluate(seed=42)
         report["fixed_benchmark"]=baseline["passed"]
+        from .method_experiments import compare
+        report["method_experiments"]=compare(seed)
         report["priorities"]=[{"skill":k,"action":"inspect failed cases and validate corrections"} for k in sorted(set(report["weaknesses"]+baseline["weaknesses"]))]
         report["status"]="practice_required" if report["priorities"] else "local_checks_passed"
         db.execute("INSERT INTO intelligence_training(report,created) VALUES (?,?)",(json.dumps(report),now()))
