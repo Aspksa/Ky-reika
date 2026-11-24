@@ -15,6 +15,8 @@ def setup(db):
 def parse(message):
     match=re.fullmatch(r'\s*(?:запомни значение|уточни значение)\s+["«]([^"»\n]+)["»]\s*[:=]\s*(.+)',message,re.I|re.S)
     if not match:
+        match=re.fullmatch(r'\s*(?:под словом|под выражением)\s+["«]([^"»\n]+)["»]\s+я\s+(?:понимаю|имею в виду)\s+(.+)',message,re.I|re.S)
+    if not match:
         return None
     term,meaning=normalize(match[1]),match[2].strip()
     if not term or not meaning or len(term)>120 or len(meaning)>2000:

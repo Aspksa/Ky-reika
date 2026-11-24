@@ -13,3 +13,9 @@ class SemanticMemoryTests(unittest.TestCase):
             execute('Уточни значение «лиса»: кодовое имя',path)
             self.assertEqual(relevant("лиса",path)[0]["meaning"],"кодовое имя")
             self.assertEqual(relevant("лисам",path),[])
+
+    def test_natural_definition(self):
+        from core.semantic_memory import parse
+        self.assertEqual(parse('Под словом «ядро» я имею в виду диспетчер'),("ядро","диспетчер"))
+        self.assertIsNone(parse('Что означает слово ядро?'))
+        self.assertIsNone(parse('Под словом «ядро» я не имею в виду диспетчер'))
