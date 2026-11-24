@@ -3,8 +3,6 @@ import os
 import json
 import logging
 import re
-from queue import Queue, Full
-from threading import Thread, Lock
 from time import monotonic, sleep
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -24,43 +22,40 @@ def token_budget(message, context):
         return 1024
     return 768
 
-_learning_queue=Queue(maxsize=128)
-_learning_lock=Lock()
-_learning_worker=None
-
-def _learn_loop():
-    while True:
-        message,path,configuration=_learning_queue.get()
-        try:
-            wait_for_idle()
-            if configuration!=tuple(os.environ.get(k,"") for k in ("CLOUD_API_BASE","CLOUD_API_KEY","CLOUD_MODEL")):
-                logging.warning("Skipping learning job after model configuration changed")
-                continue
-            from .extraction import extract
-            base,key,model=configuration
-            def bound_request(endpoint,payload):
-                return request(endpoint,payload,configuration=(base,key))
-            extract(message,bound_request,model,path)
-        except Exception:
-            logging.warning("Background knowledge extraction failed")
-        finally:
-            _learning_queue.task_done()
-
 def enqueue_learning(message,path):
-    global _learning_worker
     if os.environ.get("CLOUD_EXTRACT_FACTS","1")!="1":
         return
-    configuration=tuple(os.environ.get(k,"") for k in ("CLOUD_API_BASE","CLOUD_API_KEY","CLOUD_MODEL"))
-    if not all(configuration):
+    from .job_queue import enqueue
+    base=os.environ.get("CLOUD_API_BASE","").rstrip("/")
+    model=os.environ.get("CLOUD_MODEL","")
+    if base and model and os.environ.get("CLOUD_API_KEY"):
+        try:
+            enqueue(path,"extract",message,json.dumps([base,model]))
+        except Exception:
+            logging.exception("Could not persist learning job")
+
+def process_learning(path=DB_PATH):
+    if os.environ.get("CLOUD_EXTRACT_FACTS","1")!="1":
         return
-    with _learning_lock:
-        if _learning_worker is None or not _learning_worker.is_alive():
-            _learning_worker=Thread(target=_learn_loop,daemon=True,name="knowledge-extraction")
-            _learning_worker.start()
+    from .job_queue import claim, finish
+    from .extraction import extract
+    base=os.environ.get("CLOUD_API_BASE","").rstrip("/")
+    key=os.environ.get("CLOUD_API_KEY","")
+    model=os.environ.get("CLOUD_MODEL","")
+    if not all((base,key,model)):
+        return
+    wait_for_idle()
+    job=claim(path,"extract",json.dumps([base,model]))
+    if job is None:
+        return
+    success=False
     try:
-        _learning_queue.put_nowait((message,path,configuration))
-    except Full:
-        logging.warning("Background learning queue full; dialogue retained without extraction")
+        def bound_request(endpoint,payload):
+            return request(endpoint,payload,configuration=(base,key))
+        extract(job["payload"],bound_request,model,path)
+        success=True
+    finally:
+        finish(path,job,success)
 
 def request(endpoint, payload=None, *, configuration=None):
     base=os.environ.get("CLOUD_API_BASE","").rstrip("/")
