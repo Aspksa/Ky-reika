@@ -13,6 +13,8 @@ def command(message):
         "состояние обучения":"learning","состояние исследований":"research",
         "состояние личности":"personality","состояние задач":"jobs",
         "команды ядра":"help",
+        "запусти обучение":"run_learning","обнови исследования":"run_research",
+        "оптимизируй память":"run_memory",
     }.get(normalized)
 
 def commands(message):
@@ -34,13 +36,18 @@ def execute(message,path=DB_PATH):
     return answer,response_id
 
 def render(name,state,path):
+    if name.startswith("run_"):
+        from .chat_tasks import enqueue
+        task_id=enqueue(path,name[4:])
+        return f"Поручение №{task_id} поставлено в очередь. Выполнение ещё не подтверждено."
     if name=="help":
-        answer="Команды: состояние ядра, состояние памяти, состояние обучения, состояние исследований, состояние личности, состояние задач."
+        answer="Команды: состояние ядра, состояние памяти, состояние обучения, состояние исследований, состояние личности, состояние задач; запусти обучение; обнови исследования; оптимизируй память."
     elif name=="status":
         stages=state["stages"]
         answer="Состояние ядра:\n"+("\n".join(f"{r['stage']}: {r['status']} (ошибок: {r['failures']})" for r in stages) if stages else "Фоновый цикл ещё не зарегистрирован.")
     elif name=="jobs":
-        answer="Очередь задач: "+str(state["jobs"])
+        from .chat_tasks import recent
+        answer="Очередь задач: "+str(state["jobs"])+"\nПоручения: "+str(recent(path))
     else:
         with connect(path) as db:
             tables={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
