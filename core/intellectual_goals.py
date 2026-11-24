@@ -19,10 +19,13 @@ def refresh(path=DB_PATH):
             ON CONFLICT(root) DO UPDATE SET
             cycles=CASE WHEN intellectual_goals.revision=excluded.revision THEN intellectual_goals.cycles+1 ELSE 1 END,
             revision=excluded.revision,question=excluded.question,priority=excluded.priority,status=excluded.status""")
-        row=db.execute("""SELECT root FROM intellectual_goals WHERE status IN ('queued','awaiting_evidence','review_failed')
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name='background_reviews' AND type='table'").fetchone():
+            db.execute("""UPDATE intellectual_goals SET last_selected=(
+                SELECT max(b.created) FROM background_reviews b
+                WHERE b.root=intellectual_goals.root AND b.revision=intellectual_goals.revision)
+                WHERE status!='inactive'""")
+        row=db.execute("""SELECT root FROM intellectual_goals WHERE status IN ('queued','review_failed')
             ORDER BY last_selected IS NOT NULL,last_selected,priority DESC,root LIMIT 1""").fetchone()
-        if row:
-            db.execute("UPDATE intellectual_goals SET last_selected=? WHERE root=?",(now(),row["root"]))
         return row["root"] if row else None
 
 def current(path=DB_PATH):
