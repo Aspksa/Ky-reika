@@ -2,7 +2,7 @@
 from .database import connect
 
 TABLES={"messages":"dialogue","memories":"memory","knowledge_versions":"knowledge",
-        "response_feedback":"feedback","personality":"personality",
+        "response_feedback":"feedback","strategy_usage":"feedback","personality":"personality",
         "research_goals":"research","background_reviews":"research",
         "prediction_checks":"research"}
 
@@ -13,6 +13,9 @@ def install(path):
         for table,topic in TABLES.items():
             if table not in existing:
                 continue
+            trigger="bus_"+table+"_INSERT"
+            if not db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name=?",(trigger,)).fetchone():
+                db.execute("INSERT INTO cognitive_events VALUES (?,1) ON CONFLICT(topic) DO UPDATE SET revision=revision+1",(topic,))
             for op in ("INSERT","UPDATE","DELETE"):
                 db.execute(f"""CREATE TRIGGER IF NOT EXISTS bus_{table}_{op} AFTER {op} ON {table}
                     BEGIN INSERT INTO cognitive_events VALUES ('{topic}',1)

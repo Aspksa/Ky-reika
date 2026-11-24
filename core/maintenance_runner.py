@@ -44,6 +44,9 @@ def run(specs,path):
             if module=="thought_tree" and function=="expand":
                 from .development_policy import policy
                 return target(path,limit=policy(path)["thought_budget"])
+            if module=="learning_review" and function=="refresh":
+                from .event_dispatch import run_if_changed
+                return run_if_changed(path,"learning",("feedback",),lambda: target(path))
             return target(path)
         return invoke
     return execute([(name,action(module,function),deps) for name,module,function,deps in specs],path,record)
