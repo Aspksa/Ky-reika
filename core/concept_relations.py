@@ -2,6 +2,8 @@
 from itertools import combinations
 from .database import DB_PATH, connect
 from .knowledge import setup
+from functools import lru_cache
+from copy import deepcopy
 
 def discover(rows):
     groups={}
@@ -33,10 +35,14 @@ def discover(rows):
             "status":"candidate_relation","deductive_authority":False})
     return sorted(result,key=lambda r:(-r["shared_count"],r["left"],r["right"]))[:100]
 
+@lru_cache(maxsize=4)
+def _cached(snapshot):
+    return discover([dict(zip(("id","subject","predicate","value"),row)) for row in snapshot])
+
 def relevant(message,path=DB_PATH):
     from .reasoning import tokens
     setup(path)
     with connect(path) as db:
-        rows=[dict(r) for r in db.execute("SELECT id,subject,predicate,value FROM knowledge_versions WHERE status='current' ORDER BY id DESC LIMIT 2000")]
+        snapshot=tuple(tuple(r) for r in db.execute("SELECT id,subject,predicate,value FROM knowledge_versions WHERE status='current' ORDER BY id DESC LIMIT 2000"))
     terms=tokens(message)
-    return [r for r in discover(rows) if terms & tokens(" ".join(r["left"]+r["right"]+r["shared_subjects"]))][:5]
+    return [r for r in deepcopy(_cached(snapshot)) if terms & tokens(" ".join(r["left"]+r["right"]+r["shared_subjects"]))][:5]
