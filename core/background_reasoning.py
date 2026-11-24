@@ -32,7 +32,9 @@ def run(path=DB_PATH, request=None):
             JOIN development_thoughts d ON d.fingerprint=a.root
             WHERE d.status='candidate' AND a.revision=d.observations
             AND NOT EXISTS (SELECT 1 FROM background_reviews b WHERE b.root=a.root AND b.revision=a.revision AND (b.status='unverified' OR julianday(b.created)>julianday('now','-30 minutes')))
-            ORDER BY a.priority DESC,a.root LIMIT 1""").fetchone()
+            ORDER BY (SELECT max(b.created) FROM background_reviews b WHERE b.root=a.root) IS NOT NULL,
+                (SELECT max(b.created) FROM background_reviews b WHERE b.root=a.root),
+                a.priority DESC,a.root LIMIT 1""").fetchone()
         if not row:
             return False
         root,revision,question=row
