@@ -31,12 +31,13 @@ def run(path=DB_PATH, request=None):
         row=db.execute("""SELECT a.root,a.revision,a.question FROM research_agenda a
             JOIN development_thoughts d ON d.fingerprint=a.root
             WHERE d.status='candidate' AND a.revision=d.observations
-            AND NOT EXISTS (SELECT 1 FROM background_reviews b WHERE b.root=a.root AND b.revision=a.revision)
+            AND NOT EXISTS (SELECT 1 FROM background_reviews b WHERE b.root=a.root AND b.revision=a.revision AND (b.status='unverified' OR julianday(b.created)>julianday('now','-30 minutes')))
             ORDER BY a.priority DESC,a.root LIMIT 1""").fetchone()
         if not row:
             return False
         root,revision,question=row
-        db.execute("INSERT INTO background_reviews VALUES (?,?,?,'reserved',NULL,?)",(root,revision,day,now()))
+        reservation=now()
+        db.execute("INSERT INTO background_reviews VALUES (?,?,?,'reserved',NULL,?) ON CONFLICT(root,revision) DO UPDATE SET status='reserved',content=NULL,day=excluded.day,created=excluded.created",(root,revision,day,reservation))
     if request is None:
         from .gateway import request
     try:
@@ -60,8 +61,8 @@ def run(path=DB_PATH, request=None):
         content=None
         status="failed"
     with connect(path) as db:
-        db.execute("UPDATE background_reviews SET status=?,content=? WHERE root=? AND revision=?",(status,content,root,revision))
-    return status=="unverified"
+        changed=db.execute("UPDATE background_reviews SET status=?,content=?,created=? WHERE root=? AND revision=? AND status='reserved' AND created=?",(status,content,now(),root,revision,reservation)).rowcount
+    return bool(changed) and status=="unverified"
 
 def recent(path=DB_PATH):
     init(path)
