@@ -43,6 +43,8 @@ def consolidate(path=DB_PATH):
     advance(path)
     from .followup_research import refresh as refresh_followups
     refresh_followups(path)
+    from .followup_execution import run as execute_followups
+    execute_followups(path)
     from .research_goals import refresh as refresh_goals
     refresh_goals(path)
     return proposals
