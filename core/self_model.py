@@ -13,16 +13,22 @@ def refresh(path=DB_PATH):
     setup(path)
     priorities=motivation.evaluate(path)
     events=biography.timeline(path,12)
+    from .personality_experience import profile
+    from .personality_review import report
+    experience=profile(path)
+    consistency=report(path)
     with connect(path) as db:
         counts=dict(db.execute("SELECT kind,count(*) FROM biography_events GROUP BY kind"))
         dialogue_counts=dict(db.execute("SELECT role,count(*) FROM messages GROUP BY role"))
-        state={"schema":2,"identity":"KYUREIKA","name":"Кюрейка",
+        state={"schema":3,"identity":"KYUREIKA","name":"Кюрейка",
                "title":"Королева Девяти Хвостов","nature":"persistent software persona",
                "relationship":{"role":"operator","address":"хозяин","style":"warm, loyal, dignified","identity_verified":False},
                "capabilities":{"persistent_memory":"SQLite","dialogue_history":True,"reasoning":True,"physical_body":False,"recall":"retrieved records only"},
                "dialogue_counts":dialogue_counts,
                "communication":cognition.CONSTITUTION["communication"],
                "traits":priorities["traits"],"priorities":priorities["priorities"],
+               "communication_experience":experience,
+               "personality_consistency":consistency,
                "experience_counts":counts,"biography_event_ids":[e["id"] for e in events],
                "autonomy":"propose_only"}
         content=json.dumps(state,ensure_ascii=False,sort_keys=True)
@@ -36,7 +42,7 @@ def current(path=DB_PATH):
     with connect(path) as db:
         row=db.execute("SELECT content FROM self_model_versions ORDER BY id DESC LIMIT 1").fetchone()
     state=json.loads(row[0]) if row else {}
-    return state if state.get("schema")==2 else refresh(path)
+    return state if state.get("schema")==3 else refresh(path)
 
 def history(path=DB_PATH,limit=10):
     setup(path)
