@@ -4,6 +4,8 @@ from .database import initialize, connect, now, DB_PATH
 
 def command(message):
     normalized=" ".join(re.findall(r"\w+",message.casefold().replace("ё","е")))
+    normalized=re.sub(r"^(проверь|выведи|покажи) ", "", normalized)
+    normalized=re.sub(r"^(статус|состаяние|состоние|статистика) ", "состояние ", normalized)
     return {
         "состояние ядра":"status","покажи состояние ядра":"status",
         "диагностика":"status","диагностика ядра":"status",
@@ -13,13 +15,25 @@ def command(message):
         "команды ядра":"help",
     }.get(normalized)
 
+def commands(message):
+    parts=re.split(r"\s*(?:;|\n|,|\s+и\s+)\s*",message.strip())
+    names=[command(part) for part in parts if part.strip()]
+    return list(dict.fromkeys(names)) if names and all(names) else []
+
 def execute(message,path=DB_PATH):
-    name=command(message)
-    if name is None:
+    names=commands(message)
+    if not names:
         return None
     initialize(path)
     from .control_panel import report
     state=report(path)
+    answer="\n\n".join(render(name,state,path) for name in names)
+    with connect(path) as db:
+        db.execute("INSERT INTO messages(role,content,created_at) VALUES ('user',?,?)",(message,now()))
+        response_id=db.execute("INSERT INTO messages(role,content,created_at) VALUES ('assistant',?,?)",(answer,now())).lastrowid
+    return answer,response_id
+
+def render(name,state,path):
     if name=="help":
         answer="Команды: состояние ядра, состояние памяти, состояние обучения, состояние исследований, состояние личности, состояние задач."
     elif name=="status":
@@ -32,7 +46,4 @@ def execute(message,path=DB_PATH):
             tables={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             targets={"memory":("memories","messages"),"learning":("response_feedback","learning_reviews"),"research":("research_goals","background_reviews"),"personality":("personality","self_model_versions")}[name]
             answer="Состояние подсистемы:\n"+"\n".join(f"{table}: "+(str(db.execute("SELECT count(*) FROM "+table).fetchone()[0]) if table in tables else "ещё не создана") for table in targets)
-    with connect(path) as db:
-        db.execute("INSERT INTO messages(role,content,created_at) VALUES ('user',?,?)",(message,now()))
-        response_id=db.execute("INSERT INTO messages(role,content,created_at) VALUES ('assistant',?,?)",(answer,now())).lastrowid
-    return answer,response_id
+    return answer
