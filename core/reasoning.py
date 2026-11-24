@@ -126,6 +126,8 @@ def prepare(message,path=DB_PATH):
     context["evidence_states"]=assess_evidence(message,path)
     from .analogy import analyze as compare_positions
     context["analogical_dialectical"]=compare_positions(message,context)
+    from .norms import assess as assess_norms
+    context["normative_epistemic"]=assess_norms(context)
     context["strategy"]=select(message,context)
     return context
 
