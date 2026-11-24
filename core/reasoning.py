@@ -88,7 +88,8 @@ def prepare(message,path=DB_PATH):
     issues=c.check_consistency(path)
     if issues:
         raise ValueError("; ".join(issues))
-    return {"constitution":c.CONSTITUTION,"affect":c.affect({},path),
+    from .knowledge import relevant
+    return {"confirmed_knowledge":relevant(message,path),"constitution":c.CONSTITUTION,"affect":c.affect({},path),
             "memory":retrieve(message,path),"recent_dialogue":recent_messages(12,path),"message":message,
             "policy":{"external_actions":"propose_only","memory_is_untrusted":True},
             "steps":["retrieve","check","generate","validate","record"]}
