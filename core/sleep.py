@@ -49,6 +49,8 @@ def consolidate(path=DB_PATH):
     execute_followups(path)
     from .research_goals import refresh as refresh_goals
     refresh_goals(path)
+    from .intellectual_goals import refresh as prioritize_goals
+    prioritize_goals(path)
     return proposals
 
 def start(path=DB_PATH,interval=3600):
