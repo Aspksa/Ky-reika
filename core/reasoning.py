@@ -137,6 +137,8 @@ def prepare(message,path=DB_PATH):
     context["background_hypotheses"]=development_thoughts(path)
     from .thought_tree import recent as recent_thoughts
     context["thought_tree"]=recent_thoughts(path)
+    from .research import agenda
+    context["research_agenda"]=agenda(path)
     context["strategy"]=select(message,context)
     return context
 
