@@ -28,3 +28,28 @@ def recent(path=DB_PATH):
                 for r in db.execute("""SELECT t.*,k.subject,k.predicate FROM correction_tasks t
                     JOIN knowledge_versions k ON k.id=t.fact_id
                     WHERE t.status='open' AND k.status='current' ORDER BY t.updated,t.fact_id LIMIT 10""")]
+
+def investigate(db):
+    """Review one least recently investigated task using local records only."""
+    db.execute("""CREATE TABLE IF NOT EXISTS correction_reviews (
+        fact_id INTEGER PRIMARY KEY, evidence TEXT NOT NULL, updated TEXT NOT NULL)""")
+    task=db.execute("""SELECT k.* FROM correction_tasks t
+        JOIN knowledge_versions k ON k.id=t.fact_id
+        LEFT JOIN correction_reviews r ON r.fact_id=t.fact_id
+        WHERE t.status='open' AND k.status='current'
+        ORDER BY r.updated IS NOT NULL,r.updated,t.fact_id LIMIT 1""").fetchone()
+    if task is None:
+        return None
+    rows=db.execute("""SELECT id,value,source,status FROM knowledge_versions
+        WHERE subject=? AND predicate=? AND id!=? AND status IN ('pending','current')
+        ORDER BY id DESC LIMIT 100""",(task["subject"],task["predicate"],task["id"])).fetchall()
+    evidence={"support_ids":[],"counterclaim_ids":[],"same_source_ids":[]}
+    for row in rows:
+        key="same_source_ids" if row["source"]==task["source"] else "support_ids" if row["value"]==task["value"] else "counterclaim_ids"
+        evidence[key].append(row["id"])
+    evidence["status"]="awaiting_verification"
+    evidence["limitation"]="Different source labels do not establish independence; pending claims are not verified evidence."
+    db.execute("""INSERT INTO correction_reviews VALUES (?,?,?)
+        ON CONFLICT(fact_id) DO UPDATE SET evidence=excluded.evidence,updated=excluded.updated""",
+        (task["id"],json.dumps(evidence),now()))
+    return {"fact_id":task["id"],**evidence}
