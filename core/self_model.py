@@ -17,10 +17,12 @@ def refresh(path=DB_PATH):
     from .personality_review import report
     experience=profile(path)
     consistency=report(path)
+    from .character_development import report as character_report
+    development=character_report(path)
     with connect(path) as db:
         counts=dict(db.execute("SELECT kind,count(*) FROM biography_events GROUP BY kind"))
         dialogue_counts=dict(db.execute("SELECT role,count(*) FROM messages GROUP BY role"))
-        state={"schema":3,"identity":"KYUREIKA","name":"Кюрейка",
+        state={"schema":4,"identity":"KYUREIKA","name":"Кюрейка",
                "title":"Королева Девяти Хвостов","nature":"persistent software persona",
                "relationship":{"role":"operator","address":"хозяин","style":"warm, loyal, dignified","identity_verified":False},
                "capabilities":{"persistent_memory":"SQLite","dialogue_history":True,"reasoning":True,"physical_body":False,"recall":"retrieved records only"},
@@ -29,6 +31,7 @@ def refresh(path=DB_PATH):
                "traits":priorities["traits"],"priorities":priorities["priorities"],
                "communication_experience":experience,
                "personality_consistency":consistency,
+               "character_development":{"traits":development["traits"],"pending_proposal_ids":[p["id"] for p in development["proposals"] if p["status"]=="pending"],"approval_required":True},
                "experience_counts":counts,"biography_event_ids":[e["id"] for e in events],
                "autonomy":"propose_only"}
         content=json.dumps(state,ensure_ascii=False,sort_keys=True)
@@ -42,7 +45,7 @@ def current(path=DB_PATH):
     with connect(path) as db:
         row=db.execute("SELECT content FROM self_model_versions ORDER BY id DESC LIMIT 1").fetchone()
     state=json.loads(row[0]) if row else {}
-    return state if state.get("schema")==3 else refresh(path)
+    return state if state.get("schema")==4 else refresh(path)
 
 def history(path=DB_PATH,limit=10):
     setup(path)
