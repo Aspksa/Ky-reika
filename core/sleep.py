@@ -26,7 +26,6 @@ def consolidate(path=DB_PATH):
         ("imagination","imagination","refresh",()),
         ("learning","learning_review","refresh",()),
         ("metrics","growth_metrics","snapshot",("thoughts",)),
-        ("self","self_model","refresh",("reflection",)),
         ("background","background_reasoning","run",("research",)),
         ("inquiry","deep_inquiry","advance",("background",)),
         ("followups","followup_research","refresh",("inquiry",)),
@@ -43,6 +42,7 @@ def consolidate(path=DB_PATH):
         ("theoretical","theoretical_intelligence","refresh",("discovery",)),
         ("world","world_model","refresh",("theoretical",)),
         ("training","intelligence_training","refresh",()),
+        ("self","self_model","refresh",("reflection","priorities","identity")),
         ("health","homeostasis","refresh",()),
     ],path)
     return proposals
