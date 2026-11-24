@@ -141,15 +141,19 @@ def prepare(message,path=DB_PATH):
     context["research_agenda"]=agenda(path)
     from .creativity import recent as creative_ideas
     context["creative_ideas"]=creative_ideas(path)
-    context["strategy"]=select(message,context)
+    from .adaptation import adapt
+    context["strategy"]=adapt(select(message,context),message,path)
     return context
 
-def finish(user,answer,path=DB_PATH):
+def finish(user,answer,path=DB_PATH,strategy=None):
     if not answer.strip():
         raise ValueError("Empty answer")
     from .database import add_message
     add_message("user",user,path)
-    add_message("assistant",answer,path)
+    response_id=add_message("assistant",answer,path)
+    if strategy is not None:
+        from .adaptation import record as record_strategy
+        record_strategy(response_id,user,strategy,path)
     memory_id=learn(user,confidence=.5,path=path)
     from .biography import record
     record("dialogue","Recorded user interaction",memory_id,path=path)
