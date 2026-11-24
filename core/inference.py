@@ -1,0 +1,52 @@
+"""Explicit rule-based deductions; causal claims require explicit causal rules."""
+import json
+from .database import DB_PATH, connect
+from .knowledge import setup as init
+
+def setup(path=DB_PATH):
+    init(path)
+    with connect(path) as db:
+        db.execute("""CREATE TABLE IF NOT EXISTS inference_rules (
+            id INTEGER PRIMARY KEY, premises TEXT NOT NULL, conclusion TEXT NOT NULL,
+            kind TEXT NOT NULL CHECK(kind IN ('deductive','causal')))""")
+
+def triple(value):
+    if not isinstance(value,(list,tuple)) or len(value)!=3 or any(not isinstance(x,str) or not x.strip() for x in value):
+        raise ValueError("Expected subject, predicate, value")
+    return (value[0].strip().casefold(),value[1].strip().casefold(),value[2].strip())
+
+def add_rule(premises,conclusion,kind="deductive",path=DB_PATH):
+    if kind not in ("deductive","causal") or not 1<=len(premises)<=10:
+        raise ValueError("Invalid rule")
+    premises=[triple(p) for p in premises]
+    conclusion=triple(conclusion)
+    setup(path)
+    with connect(path) as db:
+        return db.execute("INSERT INTO inference_rules(premises,conclusion,kind) VALUES (?,?,?)",
+            (json.dumps(premises),json.dumps(conclusion),kind)).lastrowid
+
+def derive(path=DB_PATH):
+    setup(path)
+    with connect(path) as db:
+        facts={triple((r["subject"],r["predicate"],r["value"])):{"sources":[r["id"]],"rules":[],"confidence":r["confidence"]} for r in db.execute("SELECT * FROM knowledge_versions WHERE status='current'")}
+        rules=list(db.execute("SELECT * FROM inference_rules ORDER BY id LIMIT 500"))
+    known=dict(facts)
+    results=[]
+    for _ in range(10):
+        changed=False
+        for rule in rules:
+            premises=[tuple(p) for p in json.loads(rule["premises"])]
+            conclusion=tuple(json.loads(rule["conclusion"]))
+            if conclusion in known or not all(p in known for p in premises):
+                continue
+            evidence=[known[p] for p in premises]
+            item={"sources":sorted({s for e in evidence for s in e["sources"]}),
+                  "rules":sorted({rule["id"]}|{s for e in evidence for s in e["rules"]}),
+                  "confidence":min(e["confidence"] for e in evidence)}
+            known[conclusion]=item
+            results.append({"conclusion":conclusion,"kind":rule["kind"],**item,
+                "conflicts_with_confirmed":any(f[:2]==conclusion[:2] and f[2]!=conclusion[2] for f in facts)})
+            changed=True
+        if not changed:
+            break
+    return results
