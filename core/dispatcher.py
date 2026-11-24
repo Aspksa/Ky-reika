@@ -33,6 +33,7 @@ STAGES = (
         ("self","self_model","refresh",("reflection","priorities","identity","learning")),
         ("health","homeostasis","refresh",("revision",)),
         ("initiative","initiative","generate",("reflection","priorities")),
+        ("language_learning","language_learning","refresh",()),
         ("chat_tasks","chat_tasks","process",()),
         ("backup","backup","refresh",()),
 

@@ -12,7 +12,8 @@ def command(message):
         "состояние памяти":"memory","покажи состояние памяти":"memory",
         "состояние обучения":"learning","состояние исследований":"research",
         "состояние личности":"personality","состояние задач":"jobs",
-        "команды ядра":"help",
+        "команды ядра":"help","изучение языка":"language",
+        "состояние языка":"language",
         "запусти обучение":"run_learning","обнови исследования":"run_research",
         "оптимизируй память":"run_memory",
     }.get(normalized)
@@ -51,6 +52,10 @@ def render(name,state,path):
         from .chat_tasks import enqueue
         task_id=enqueue(path,name[4:])
         return f"Поручение №{task_id} поставлено в очередь. Выполнение ещё не подтверждено."
+    if name=="language":
+        from .language_learning import candidates
+        items=candidates(path)
+        return "Кандидаты для изучения языка (частота сообщений, не доказательство незнания):\n"+("\n".join(f"{r['term']}: {r['occurrences']}" for r in items) or "Пока нет повторяющихся кандидатов.")
     if name=="help":
         answer="Команды: состояние ядра, состояние памяти, состояние обучения, состояние исследований, состояние личности, состояние задач; запусти обучение; обнови исследования; оптимизируй память."
     elif name=="status":
