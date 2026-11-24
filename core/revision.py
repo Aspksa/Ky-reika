@@ -24,6 +24,9 @@ def revise(path=DB_PATH):
         old={r["conclusion"]:r for r in db.execute("SELECT * FROM deduction_history WHERE withdrawn IS NULL")}
         removed=0
         added=0
+        restored=0
+        revised=0
+        historical={r[0] for r in db.execute("SELECT DISTINCT conclusion FROM deduction_history WHERE withdrawn IS NOT NULL")}
         for key,row in old.items():
             if valid.get(key)!=row["evidence"]:
                 db.execute("UPDATE deduction_history SET withdrawn=? WHERE id=?",(now(),row["id"]))
@@ -32,7 +35,11 @@ def revise(path=DB_PATH):
             if key not in old or old[key]["evidence"]!=value:
                 db.execute("INSERT INTO deduction_history(conclusion,evidence,created) VALUES (?,?,?)",(key,value,now()))
                 added+=1
-    return {"added":added,"withdrawn":removed,"active":len(valid)}
+                if key in old:
+                    revised+=1
+                elif key in historical:
+                    restored+=1
+    return {"added":added,"withdrawn":removed,"active":len(valid),"restored":restored,"revised":revised}
 
 def audit(path=DB_PATH):
     setup(path)
@@ -47,3 +54,13 @@ def audit(path=DB_PATH):
             stale.append(row["id"])
     return {"active_records":len(rows),"stale_records":stale,
             "guidance":"Stored deductions are provisional; use current evidence for conclusions."}
+
+def history(conclusion,path=DB_PATH):
+    """Return chronological proof versions, including withdrawn ones."""
+    from .inference import triple
+    setup(path)
+    key=json.dumps(triple(conclusion),ensure_ascii=False)
+    with connect(path) as db:
+        return [{"id":r["id"],"evidence":json.loads(r["evidence"]),
+                 "created":r["created"],"withdrawn":r["withdrawn"]}
+                for r in db.execute("SELECT * FROM deduction_history WHERE conclusion=? ORDER BY id",(key,))]
