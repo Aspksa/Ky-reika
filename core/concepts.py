@@ -2,6 +2,8 @@
 from collections import defaultdict
 from .database import DB_PATH, connect
 from .knowledge import setup
+from functools import lru_cache
+from copy import deepcopy
 
 def discover(rows):
     groups=defaultdict(lambda:defaultdict(list))
@@ -20,10 +22,14 @@ def discover(rows):
                 "limitation":"Shared observed property, not a universal rule or causal explanation."})
     return sorted(concepts,key=lambda c:(-len(c["source_ids"]),c["property"]))[:30]
 
+@lru_cache(maxsize=4)
+def _cached(snapshot):
+    return discover([dict(zip(("id","subject","predicate","value"),row)) for row in snapshot])
+
 def relevant(message,path=DB_PATH):
     from .reasoning import tokens
     setup(path)
     with connect(path) as db:
-        rows=[dict(r) for r in db.execute("SELECT id,subject,predicate,value FROM knowledge_versions WHERE status='current' ORDER BY id DESC LIMIT 2000")]
+        snapshot=tuple(tuple(r) for r in db.execute("SELECT id,subject,predicate,value FROM knowledge_versions WHERE status='current' ORDER BY id DESC LIMIT 2000"))
     terms=tokens(message)
-    return [c for c in discover(rows) if terms & tokens(" ".join(c["property"]+c["examples"]))][:5]
+    return [c for c in deepcopy(_cached(snapshot)) if terms & tokens(" ".join(c["property"]+c["examples"]))][:5]
