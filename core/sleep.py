@@ -21,7 +21,8 @@ def consolidate(path=DB_PATH):
     from .development import grow
     grow(path)
     from .thought_tree import expand
-    expand(path)
+    from .development_policy import policy
+    expand(path,limit=policy(path)['thought_budget'])
     from .research import refresh
     refresh(path)
     from .creativity import generate as generate_ideas
@@ -35,10 +36,14 @@ def start(path=DB_PATH,interval=3600):
         raise ValueError("Interval must be at least 60 seconds")
     stop=Event()
     def run():
-        while not stop.wait(interval):
+        delay=interval
+        while not stop.wait(delay):
             try:
                 consolidate(path)
+                from .development_policy import policy
+                delay=max(60,min(interval,policy(path)['interval']))
             except Exception:
+                delay=interval
                 logging.getLogger(__name__).exception("Memory maintenance failed")
     worker=Thread(target=run,name="kyureika-memory-maintenance",daemon=True)
     worker.start()
