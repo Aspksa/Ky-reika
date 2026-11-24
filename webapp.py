@@ -3,7 +3,7 @@ import secrets
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from core import gateway, reasoning
+from core import gateway, reasoning, sleep
 
 ROOT=Path(__file__).resolve().parent
 TOKEN=secrets.token_urlsafe(32)
@@ -47,7 +47,11 @@ if __name__=="__main__":
         url="http://127.0.0.1:"+str(server.server_port)+"/"
         print(url,flush=True)
         webbrowser.open(url)
+        stop,worker=sleep.start()
         try:
             server.serve_forever()
         except KeyboardInterrupt:
             pass
+        finally:
+            stop.set()
+            worker.join(timeout=5)
