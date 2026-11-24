@@ -33,7 +33,7 @@ def derive(path=DB_PATH):
     fact_values={f[:2]:f[2] for f in facts}
     def contradicts(c):
         return c[:2] in fact_values and fact_values[c[:2]]!=c[2]
-    def closure(blocked,excluded=None):
+    def reference_closure(blocked,excluded=None):
         known=dict(facts)
         for _ in range(len(rules)+1):
             changed=False
@@ -49,6 +49,22 @@ def derive(path=DB_PATH):
                 changed=True
             if not changed:
                 break
+        return known
+    def closure(blocked,excluded=None):
+        # Keep proof construction authoritative; compare the indexed reachability
+        # algorithm on the exact same filtered rules before trusting its output.
+        from .structural_reasoning import closure as indexed
+        eligible=[(premises,c) for rid,kind,premises,c in rules
+                  if rid!=excluded and c not in blocked and not contradicts(c)]
+        known=reference_closure(blocked,excluded)
+        try:
+            predicted=indexed(facts,eligible)
+            if predicted!=set(known):
+                import logging
+                logging.getLogger(__name__).warning("Indexed closure mismatch; retaining reference proofs")
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("Indexed closure failed; retaining reference proofs")
         return known
     initial=closure(set())
     values={}
