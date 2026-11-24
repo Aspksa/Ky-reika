@@ -38,14 +38,17 @@ def main():
         print(json.dumps(cognition.CONSTITUTION, ensure_ascii=False))
         print(json.dumps(cognition.affect({}), ensure_ascii=False))
     elif args.command == "sleep":
-        print(cognition.sleep_once())
+        from core.sleep import consolidate
+        print(consolidate())
     elif args.command == "worker":
+        from core.sleep import start
+        stop, worker = start()
         try:
-            while True:
-                cognition.sleep_once()
-                time.sleep(3600)
+            while worker.is_alive():
+                worker.join(1)
         except KeyboardInterrupt:
-            pass
+            stop.set()
+            worker.join(5)
     elif args.command in ("approve", "rollback"):
         if not args.text or not args.text.isdecimal():
             parser.error("Укажите ID предложения")
