@@ -79,17 +79,22 @@ def request(endpoint, payload=None, *, configuration=None):
 def models():
     return request("/models")
 
-def chat(message,path=DB_PATH):
-    started=monotonic()
-    model=os.environ.get("CLOUD_MODEL","")
-    if not model:
-        raise RuntimeError("Configure CLOUD_MODEL")
+def prepare_context(message,path=DB_PATH):
     context=reasoning.prepare_dialogue(message,path)
     context.pop("message",None)
     from .dialogue_style import profile
     context["dialogue_style"]=profile(message,path)
     from .integral_intelligence import coordinate
     context["integral_intelligence"]=coordinate(message,context)
+    context["affect"]=context["dialogue_style"]["affect"]
+    return context
+
+def chat(message,path=DB_PATH):
+    started=monotonic()
+    model=os.environ.get("CLOUD_MODEL","")
+    if not model:
+        raise RuntimeError("Configure CLOUD_MODEL")
+    context=prepare_context(message,path)
     complex_task=context["integral_intelligence"]["depth"]=="deep" and (len(message.split())>=20 or bool(set(re.findall(r"\w+",message.casefold())) & {"докажи","проанализируй","обоснуй","prove","analyze"}))
     logging.info("Chat context prepared in %.2fs",monotonic()-started)
     response=request("/chat/completions",{"model":model,"max_tokens":token_budget(message,context),"messages":[
@@ -124,12 +129,7 @@ def stream_chat(message,path=DB_PATH,*,progress=None):
     model=os.environ.get("CLOUD_MODEL","")
     if urlparse(base).scheme!="https" or not key or not model:
         raise RuntimeError("Cloud.ru is not configured")
-    context=reasoning.prepare_dialogue(message,path)
-    context.pop("message",None)
-    from .dialogue_style import profile
-    context["dialogue_style"]=profile(message,path)
-    from .integral_intelligence import coordinate
-    context["integral_intelligence"]=coordinate(message,context)
+    context=prepare_context(message,path)
     logging.info("Stream context prepared in %.3fs; mode=%s depth=%s",monotonic()-started,context.get("context_mode","full"),context["integral_intelligence"]["depth"])
     if progress:
         progress("connecting")
