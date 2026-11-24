@@ -9,6 +9,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from core import gateway, reasoning, sleep
+from core.resource_priority import foreground
 
 ROOT=Path(__file__).resolve().parent
 TOKEN=secrets.token_urlsafe(32)
@@ -91,9 +92,10 @@ class Handler(BaseHTTPRequestHandler):
             message=payload["message"]
             if not isinstance(message,str) or not message.strip() or len(message)>12000:
                 return self.reply({"error":"Invalid message"},400)
-            if self.path=="/api/chat/stream":
-                return self.stream_reply(message)
-            self.reply({"answer":gateway.chat(message)})
+            with foreground():
+                if self.path=="/api/chat/stream":
+                    return self.stream_reply(message)
+                self.reply({"answer":gateway.chat(message)})
         except HTTPError as exc:
             return self.reply({"error":f"Cloud.ru HTTP {exc.code}: проверьте ключ, доступ к модели, баланс и параметры запроса."},502)
         except (URLError,TimeoutError):
