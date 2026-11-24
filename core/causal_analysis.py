@@ -5,13 +5,13 @@ from .inference import setup
 
 def trace(facts,rules):
     known={tuple(f):{"depth":0,"sources":[sid],"rules":[]} for f,sid in facts}
-    for _ in range(10):
+    for _ in range(len(rules)+1):
         additions={}
         for rid,premises,c in rules:
             if c in known or not all(p in known for p in premises):
                 continue
             evidence=[known[p] for p in premises]
-            additions.setdefault(c,{"depth":1+max(e["depth"] for e in evidence),
+            additions.setdefault(c,{"depth":1+max((e["depth"] for e in evidence),default=0),
                 "sources":sorted({s for e in evidence for s in e["sources"]}),
                 "rules":sorted({rid}|{s for e in evidence for s in e["rules"]})})
         if not additions:
