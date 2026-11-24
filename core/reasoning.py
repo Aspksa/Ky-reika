@@ -190,6 +190,8 @@ def prepare(message,path=DB_PATH):
     context["intelligence_training"]=training_report(path)
     from .discovery_lab import recent as discoveries
     context["discovery_predictions"]=discoveries(path)
+    from .theoretical_intelligence import compare as compare_theories
+    context["theoretical_comparisons"]=compare_theories(context["discovery_predictions"])
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     from .metacognition import assess as assess_thinking, record as record_thinking, apply as apply_thinking
