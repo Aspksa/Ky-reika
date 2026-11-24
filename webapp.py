@@ -42,8 +42,30 @@ class Handler(BaseHTTPRequestHandler):
             self.send_data((ROOT/"assets/avatar.png").read_bytes(),"image/png")
         else:
             self.reply({"error":"Not found"},404)
+    def stream_reply(self,message):
+        self.send_response(200)
+        self.send_header("Content-Type","application/x-ndjson; charset=utf-8")
+        self.send_header("Cache-Control","no-store")
+        self.send_header("Connection","close")
+        self.end_headers()
+        self.close_connection=True
+        def emit(event):
+            self.wfile.write((json.dumps(event,ensure_ascii=False)+"\n").encode())
+            self.wfile.flush()
+        try:
+            for chunk in gateway.stream_chat(message):
+                emit({"delta":chunk})
+            emit({"done":True})
+        except (BrokenPipeError,ConnectionResetError):
+            return
+        except Exception as exc:
+            logging.error("Chat stream failed: %s",type(exc).__name__)
+            try:
+                emit({"error":"Ошибка потока Cloud.ru или когнитивного ядра."})
+            except OSError:
+                pass
     def do_POST(self):
-        if self.path not in ("/api/chat","/api/cloud/models","/api/cloud/connect") or self.headers.get("X-Session-Token")!=TOKEN:
+        if self.path not in ("/api/chat","/api/chat/stream","/api/cloud/models","/api/cloud/connect") or self.headers.get("X-Session-Token")!=TOKEN:
             return self.reply({"error":"Forbidden"},403)
         try:
             length=int(self.headers.get("Content-Length","0"))
@@ -69,6 +91,8 @@ class Handler(BaseHTTPRequestHandler):
             message=payload["message"]
             if not isinstance(message,str) or not message.strip() or len(message)>12000:
                 return self.reply({"error":"Invalid message"},400)
+            if self.path=="/api/chat/stream":
+                return self.stream_reply(message)
             self.reply({"answer":gateway.chat(message)})
         except HTTPError as exc:
             return self.reply({"error":f"Cloud.ru HTTP {exc.code}: проверьте ключ, доступ к модели, баланс и параметры запроса."},502)
