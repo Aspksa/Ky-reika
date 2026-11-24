@@ -243,6 +243,8 @@ def prepare(message,path=DB_PATH):
     context["world_model"]=world_context(message,path,context["discovery_predictions"])
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
+    from .response_analysis import report as response_report
+    context["response_analysis"]=response_report(path)
     from .metacognition import assess as assess_thinking, record as record_thinking, apply as apply_thinking
     context["metacognition"]=assess_thinking(context)
     record_thinking(context["metacognition"],path)
