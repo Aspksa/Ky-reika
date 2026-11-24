@@ -25,13 +25,15 @@ def refresh(path=DB_PATH):
         epistemic=assess({"confirmed_knowledge":facts,"potential_conflicts":conflicts})
         from .correction_queue import sync
         sync(db,epistemic["records"])
+        from .correction_queue import investigate
+        correction_review=investigate(db)
         review_ids=[r["id"] for r in epistemic["records"] if r["issues"]]
         metrics={k:memory[k] for k in ("low_confidence","disputed_memories","pending_knowledge","potential_conflicts")}
         previous=db.execute("SELECT content FROM cognitive_health ORDER BY id DESC LIMIT 1").fetchone()
         baseline=json.loads(previous[0])["metrics"] if previous else metrics
         changes={k:metrics[k]-baseline[k] for k in metrics}
         report={"metrics":metrics,"changes":changes,"stale_before":len(before["stale_records"]),
-                "withdrawn_records":withdrawn,"epistemic_review_count":len(review_ids),"epistemic_review_ids":review_ids[:50],
+                "withdrawn_records":withdrawn,"correction_review":correction_review,"epistemic_review_count":len(review_ids),"epistemic_review_ids":review_ids[:50],
                 "recommendations":list(dict.fromkeys(memory["recommendations"]+epistemic["guidance"])),
                 "status":"review_required" if any(metrics.values()) or withdrawn or review_ids else "no_detected_issue",
                 "limitation":"Counts are maintenance signals, not measures of intelligence."}
