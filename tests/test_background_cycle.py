@@ -16,7 +16,7 @@ class BackgroundCycleTests(unittest.TestCase):
                     consolidate(path)
                     with connect(path) as db:
                         rows=list(db.execute("SELECT stage,status FROM maintenance_status"))
-                        self.assertEqual(len(rows),26)
+                        self.assertEqual(len(rows),27)
                         self.assertEqual([(r["stage"],r["status"]) for r in rows if r["status"]!="ok"],[])
                         self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0],"ok")
                         self.assertEqual(list(db.execute("PRAGMA foreign_key_check")),[])
