@@ -269,6 +269,12 @@ def finish(user,answer,path=DB_PATH,strategy=None,*,return_response_id=False):
         timestamp=now()
         db.execute("INSERT INTO messages(role,content,created_at) VALUES (?,?,?)",("user",user,timestamp))
         response_id=db.execute("INSERT INTO messages(role,content,created_at) VALUES (?,?,?)",("assistant",answer,timestamp)).lastrowid
+    try:
+        from .personality_review import record as review_personality
+        review_personality(response_id,answer,path)
+    except Exception:
+        import logging
+        logging.warning("Personality review failed")
     if strategy is not None:
         from .adaptation import record as record_strategy
         record_strategy(response_id,user,strategy,path)
