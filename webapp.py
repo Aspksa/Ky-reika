@@ -10,6 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from core import gateway, reasoning, sleep
 from core.resource_priority import foreground
+from core.resource_statistics import report as resource_report
 
 ROOT=Path(__file__).resolve().parent
 TOKEN=secrets.token_urlsafe(32)
@@ -49,7 +50,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply({"error":"Forbidden"},403)
             from core.statistics import report
             try:
-                return self.reply(report())
+                data=report()
+                data["resources"]=resource_report()
+                return self.reply(data)
             except Exception:
                 logging.exception("Statistics unavailable")
                 return self.reply({"error":"Statistics unavailable"},503)
