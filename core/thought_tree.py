@@ -12,13 +12,14 @@ def setup(path=DB_PATH):
             revision INTEGER NOT NULL, content TEXT NOT NULL, created TEXT NOT NULL,
             UNIQUE(root,revision,stage))""")
 
-def expand(path=DB_PATH):
+def expand(path=DB_PATH,limit=20):
+    limit=max(1,min(30,int(limit)))
     setup(path)
     with connect(path) as db:
         db.execute("BEGIN IMMEDIATE")
         roots=list(db.execute("""SELECT * FROM development_thoughts d WHERE status='candidate'
             AND NOT EXISTS (SELECT 1 FROM thought_nodes n WHERE n.root=d.fingerprint
-            AND n.revision=d.observations AND n.stage=2) ORDER BY updated DESC LIMIT 20"""))
+            AND n.revision=d.observations AND n.stage=2) ORDER BY updated DESC LIMIT ?""",(limit,)))
         for root in roots:
             key,rev=root["fingerprint"],root["observations"]
             previous=db.execute("SELECT id,stage FROM thought_nodes WHERE root=? AND revision=? ORDER BY stage DESC LIMIT 1",(key,rev)).fetchone()
