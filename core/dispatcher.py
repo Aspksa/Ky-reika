@@ -33,8 +33,13 @@ STAGES = (
         ("self","self_model","refresh",("reflection","priorities","identity","learning")),
         ("health","homeostasis","refresh",("revision",)),
         ("initiative","initiative","generate",("reflection","priorities")),
+        ("backup","backup","refresh",()),
 
 )
 
 def cycle(path):
-    return run(STAGES,path)
+    from .cognitive_bus import install
+    install(path)
+    result=run(STAGES,path)
+    install(path)
+    return result

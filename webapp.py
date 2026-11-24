@@ -39,6 +39,11 @@ class Handler(BaseHTTPRequestHandler):
         if self.path=="/":
             html=(ROOT/"index.html").read_text(encoding="utf-8").replace("</head>",'<meta name="session-token" content="'+TOKEN+'"></head>')
             self.send_data(html.encode(),"text/html; charset=utf-8")
+        elif self.path=="/api/kernel":
+            if self.headers.get("X-Session-Token")!=TOKEN:
+                return self.reply({"error":"Forbidden"},403)
+            from core.control_panel import report
+            return self.reply(report())
         elif self.path=="/api/initiative":
             if self.headers.get("X-Session-Token")!=TOKEN:
                 return self.reply({"error":"Forbidden"},403)
