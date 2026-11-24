@@ -4,7 +4,7 @@ rem UTF-8 for Cyrillic file names and Python input/output.
 set "PYTHONUTF8=1"
 set "PYTHONIOENCODING=utf-8"
 title KYUREIKA - Safe Launcher
-rem Keep this file beside main.py. No network ports are opened by this launcher.
+rem Keep this file beside main.py. Web chat binds to loopback only.
 rem Use quoted paths and avoid parenthesized blocks around user-controlled values.
 pushd "%~dp0" 2>nul
 if errorlevel 1 goto PATH_ERROR
@@ -45,7 +45,7 @@ goto CHECK_PY
 if errorlevel 1 goto PY_ERROR
 "%PY_EXE%" %PY_ARG% "%ENTRY%" init
 if errorlevel 1 goto INIT_ERROR
-rem Open the local static website without a server or network port.
+rem Start the local web chat.
 call :OPEN_SITE
 
 :MENU
@@ -81,7 +81,7 @@ goto MENU
 call :OPEN_SITE
 goto MENU
 :OPEN_SITE
-start "" "%SITE%"
+start "KYUREIKA Web" "%PY_EXE%" %PY_ARG% "%ROOT%\webapp.py"
 if errorlevel 1 echo WARNING: Browser could not open the local website.
 exit /b 0
 :STATUS
@@ -107,8 +107,8 @@ echo.
 echo SQLite integrity:
 "%PY_EXE%" %PY_ARG% -c "from core.database import DB_PATH,initialize,connect; initialize(); c=connect(DB_PATH); db=c.__enter__(); print('Database:', DB_PATH); print('Integrity:', db.execute('PRAGMA integrity_check').fetchone()[0]); c.__exit__(None,None,None)"
 echo.
-echo Network ports: not used by current local core.
-echo No port conflicts possible in this version.
+echo Network: web chat uses a dynamically assigned loopback port.
+echo Close the web server window to stop it.
 goto WAIT_MENU
 :TESTS
 "%PY_EXE%" %PY_ARG% -m unittest discover -s "%ROOT%\tests"
