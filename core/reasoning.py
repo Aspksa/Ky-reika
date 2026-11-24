@@ -152,6 +152,8 @@ def prepare(message,path=DB_PATH):
     context['research_goals']=research_goals(path)
     from .imagination import recent as imagined_worlds
     context['imagined_worlds']=imagined_worlds(path)
+    from .deep_inquiry import recent as deep_thoughts
+    context['deep_inquiry']=deep_thoughts(path)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     return context
