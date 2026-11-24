@@ -37,7 +37,7 @@ def chat(message,path=DB_PATH):
         except Exception:
             import logging
             logging.getLogger(__name__).warning("Optional answer review failed")
-    reasoning.finish(message,answer,path)
+    reasoning.finish(message,answer,path,strategy=context['strategy'])
     if os.environ.get("CLOUD_EXTRACT_FACTS")=="1":
         try:
             from .extraction import extract
