@@ -20,6 +20,8 @@ def consolidate(path=DB_PATH):
     generate(path)
     from .development import grow
     grow(path)
+    from .thought_tree import expand
+    expand(path)
     return proposals
 
 def start(path=DB_PATH,interval=3600):
