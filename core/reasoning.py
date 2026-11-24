@@ -94,14 +94,14 @@ def reinforce(memory_id,reward,path=DB_PATH):
 
 def prepare_dialogue(message,path=DB_PATH):
     """Conservative three-tier routing; uncertain tasks retain full reasoning."""
-    from .dialogue_router import route
+    from .dialogue_router import route, research_requested
     if route(message)=="deep":
-        return prepare(message,path)
+        return prepare(message,path,include_research=research_requested(message))
     setup(path)
     history=recent_messages(12,path)
     mode=route(message,history)
     if mode=="deep":
-        return prepare(message,path)
+        return prepare(message,path,include_research=research_requested(message))
     standard=mode=="standard"
     issues=c.check_consistency(path)
     if issues:
@@ -117,7 +117,7 @@ def prepare_dialogue(message,path=DB_PATH):
              "policy":{"external_actions":"propose_only","memory_is_untrusted":True},
              "context_mode":"standard_dialogue" if standard else "brief_social_dialogue"}
     if context["potential_conflicts"]:
-        return prepare(message,path)
+        return prepare(message,path,include_research=research_requested(message))
     context["strategy"]=select(message,context)
     context["epistemic_audit"]=assess(context)
     context["strategy"]=apply(context["strategy"],context["epistemic_audit"])
@@ -127,20 +127,20 @@ def prepare_dialogue(message,path=DB_PATH):
         context["feedback_lessons"]=lessons(message,path)
         context["strategy"]=adapt(context["strategy"],message,path)
         if context["strategy"]["mode"]=="structured":
-            return prepare(message,path)
+            return prepare(message,path,include_research=research_requested(message))
         from .inference import derive
         from .metalogic import coordinate
         context["derived_hypotheses"]=[x for x in derive(path) if tokens(message)&tokens(" ".join(x["conclusion"]))][:8]
         context["metalogic"]=coordinate(message,context)
         if context["metalogic"].get("conflicts") or any(r.get("issues") for r in context["epistemic_audit"].get("records",[])):
-            return prepare(message,path)
+            return prepare(message,path,include_research=research_requested(message))
         context["derived_hypotheses"]=context["metalogic"]["provisional_deductions"]
         from .uncertainty import assess as assess_uncertainty
         context["uncertainty"]=assess_uncertainty(context)
         context["context_assessment"]={"local_evidence_present":bool(context["confirmed_knowledge"] or context["derived_hypotheses"]),"limitation":"Local evidence coverage is not proof of answer correctness."}
     return context
 
-def prepare(message,path=DB_PATH):
+def prepare(message,path=DB_PATH,*,include_research=True):
     setup(path)
     issues=c.check_consistency(path)
     if issues:
@@ -183,44 +183,45 @@ def prepare(message,path=DB_PATH):
     from .metalogic import coordinate
     context["metalogic"]=coordinate(message,context)
     context["derived_hypotheses"]=context["metalogic"]["provisional_deductions"]
-    from .development import recent as development_thoughts
-    context["background_hypotheses"]=development_thoughts(path)
-    from .thought_tree import recent as recent_thoughts
-    context["thought_tree"]=recent_thoughts(path)
-    from .research import agenda
-    context["research_agenda"]=agenda(path)
-    from .creativity import recent as creative_ideas
-    context["creative_ideas"]=creative_ideas(path)
-    from .growth_metrics import latest as growth_report
-    context["growth_metrics"]=growth_report(path)
-    from .background_reasoning import recent as generated_thoughts
-    context["generated_background_thoughts"]=generated_thoughts(path)
     from .self_model import current as self_model
-    context['self_model']=self_model(path)
-    from .research_goals import current as research_goals
-    context['research_goals']=research_goals(path)
-    from .imagination import recent as imagined_worlds
-    context['imagined_worlds']=imagined_worlds(path)
-    from .deep_inquiry import recent as deep_thoughts
-    context['deep_inquiry']=deep_thoughts(path)
-    from .followup_research import recent as followup_questions
-    context['followup_questions']=followup_questions(path)
-    from .followup_execution import recent as followup_results
-    context['followup_results']=followup_results(path)
-    from .rule_validation import recent as rule_assessments
-    context['rule_assessments']=rule_assessments(path)
-    from .intellectual_goals import current as intellectual_goals
-    context['intellectual_goals']=intellectual_goals(path)
-    from .research_synthesis import recent as research_syntheses
-    context['research_syntheses']=research_syntheses(path)
-    from .theory_memory import recent as theory_frameworks
-    context['theory_frameworks']=theory_frameworks(path)
-    from .theory_review import recent as theory_reviews
-    context['theory_reviews']=theory_reviews(path)
-    from .prediction_checks import recent as prediction_checks
-    context['prediction_checks']=prediction_checks(path)
-    from .prediction_learning import profile as prediction_learning
-    context['prediction_learning']=prediction_learning(path)
+    context["self_model"]=self_model(path)
+    if include_research:
+        from .development import recent as development_thoughts
+        context["background_hypotheses"]=development_thoughts(path)
+        from .thought_tree import recent as recent_thoughts
+        context["thought_tree"]=recent_thoughts(path)
+        from .research import agenda
+        context["research_agenda"]=agenda(path)
+        from .creativity import recent as creative_ideas
+        context["creative_ideas"]=creative_ideas(path)
+        from .growth_metrics import latest as growth_report
+        context["growth_metrics"]=growth_report(path)
+        from .background_reasoning import recent as generated_thoughts
+        context["generated_background_thoughts"]=generated_thoughts(path)
+        from .research_goals import current as research_goals
+        context['research_goals']=research_goals(path)
+        from .imagination import recent as imagined_worlds
+        context['imagined_worlds']=imagined_worlds(path)
+        from .deep_inquiry import recent as deep_thoughts
+        context['deep_inquiry']=deep_thoughts(path)
+        from .followup_research import recent as followup_questions
+        context['followup_questions']=followup_questions(path)
+        from .followup_execution import recent as followup_results
+        context['followup_results']=followup_results(path)
+        from .rule_validation import recent as rule_assessments
+        context['rule_assessments']=rule_assessments(path)
+        from .intellectual_goals import current as intellectual_goals
+        context['intellectual_goals']=intellectual_goals(path)
+        from .research_synthesis import recent as research_syntheses
+        context['research_syntheses']=research_syntheses(path)
+        from .theory_memory import recent as theory_frameworks
+        context['theory_frameworks']=theory_frameworks(path)
+        from .theory_review import recent as theory_reviews
+        context['theory_reviews']=theory_reviews(path)
+        from .prediction_checks import recent as prediction_checks
+        context['prediction_checks']=prediction_checks(path)
+        from .prediction_learning import profile as prediction_learning
+        context['prediction_learning']=prediction_learning(path)
     from .knowledge_transfer import suggest as transfer_experience
     context['knowledge_transfer']=transfer_experience(message,context)
     from .intellectual_identity import current as intellectual_identity
