@@ -26,6 +26,8 @@ def consolidate(path=DB_PATH):
     refresh(path)
     from .creativity import generate as generate_ideas
     generate_ideas(path)
+    from .growth_metrics import snapshot
+    snapshot(path)
     return proposals
 
 def start(path=DB_PATH,interval=3600):
