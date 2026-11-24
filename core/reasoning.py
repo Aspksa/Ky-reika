@@ -120,6 +120,8 @@ def prepare(message,path=DB_PATH):
     context["abductive_explanations"]=[e for e in hypotheses["explanations"] if terms & tokens(" ".join(e["observation"]))][:5]
     from .uncertainty import assess
     context["uncertainty"]=assess(context)
+    from .scenarios import chronology
+    context["knowledge_chronology"]=chronology(message,path)
     context["strategy"]=select(message,context)
     return context
 
