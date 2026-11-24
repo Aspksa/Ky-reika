@@ -18,6 +18,8 @@ def consolidate(path=DB_PATH):
     revise(path)
     from .initiative import generate
     generate(path)
+    from .development import grow
+    grow(path)
     return proposals
 
 def start(path=DB_PATH,interval=3600):
