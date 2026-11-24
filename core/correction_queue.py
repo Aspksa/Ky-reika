@@ -50,6 +50,7 @@ def investigate(db):
     evidence["alternatives"]=alternatives(task,rows)
     evidence["experiment"]=experiment(db,task)
     evidence["status"]="awaiting_verification"
+    evidence["next_strategy"]=choose_strategy(evidence["experiment"]["status"])
     evidence["limitation"]="Different source labels do not establish independence; pending claims are not verified evidence."
     db.execute("""INSERT INTO correction_reviews VALUES (?,?,?)
         ON CONFLICT(fact_id) DO UPDATE SET evidence=excluded.evidence,updated=excluded.updated""",
@@ -88,3 +89,23 @@ def experiment(db,task):
             "status":"mixed_claims" if matches and mismatches else "contrary_claims" if mismatches else "matching_claims" if matches else "awaiting_observation",
             "limitation":"Later local claims are not independent experimental observations.",
             "factual_promotion_authorized":False}
+
+def choose_strategy(status):
+    return {
+        "mixed_claims":"Compare provenance, dates and measurement conditions.",
+        "contrary_claims":"Prioritize checking counterclaims and possible changes over time.",
+        "matching_claims":"Check source independence before increasing confidence.",
+        "awaiting_observation":"Seek a new observation rather than repeating the same argument."
+    }[status]
+
+def statistics(db):
+    counts={k:0 for k in ("mixed_claims","contrary_claims","matching_claims","awaiting_observation")}
+    for row in db.execute("""SELECT r.evidence FROM correction_reviews r
+        JOIN correction_tasks t ON t.fact_id=r.fact_id
+        JOIN knowledge_versions k ON k.id=t.fact_id
+        WHERE t.status='open' AND k.status='current'"""):
+        status=json.loads(row[0]).get("experiment",{}).get("status")
+        if status in counts:
+            counts[status]+=1
+    return {"latest_review_counts":counts,
+            "limitation":"Last reviewed outcomes of active tasks, not calibrated accuracy or strategy effectiveness."}
