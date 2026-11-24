@@ -95,6 +95,8 @@ def reinforce(memory_id,reward,path=DB_PATH):
 def prepare_dialogue(message,path=DB_PATH):
     """Conservative three-tier routing; uncertain tasks retain full reasoning."""
     from .dialogue_router import route
+    if route(message)=="deep":
+        return prepare(message,path)
     setup(path)
     history=recent_messages(12,path)
     mode=route(message,history)
