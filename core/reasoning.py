@@ -46,7 +46,7 @@ def learn(text,kind="episodic",confidence=.5,path=DB_PATH):
                 db.execute("INSERT OR REPLACE INTO memory_links VALUES (?,?,?)",(i,row["id"],score))
     return i
 
-def retrieve(query,path=DB_PATH):
+def retrieve(query,path=DB_PATH,*,semantic_enabled=True):
     setup(path)
     terms=tokens(query)
     with c.connect(path) as db:
@@ -75,7 +75,8 @@ def retrieve(query,path=DB_PATH):
     semantic=[]
     try:
         from .vectors import search
-        semantic=search(query,path)
+        if semantic_enabled:
+            semantic=search(query,path)
     except Exception:
         import logging
         logging.getLogger(__name__).warning("Semantic memory unavailable; using lexical retrieval")
@@ -90,6 +91,31 @@ def reinforce(memory_id,reward,path=DB_PATH):
         if not cur.rowcount:
             raise ValueError("Unknown memory")
         c.audit(db,"reinforcement",{"id":memory_id,"reward":reward})
+
+def prepare_dialogue(message,path=DB_PATH):
+    """Fast path only for exact greetings and acknowledgements."""
+    if message.strip().casefold().rstrip("!.?… ") not in {
+        "привет","здравствуй","здравствуйте","доброе утро","добрый вечер",
+        "спасибо","благодарю","hi","hello","thanks"}:
+        return prepare(message,path)
+    setup(path)
+    issues=c.check_consistency(path)
+    if issues:
+        raise ValueError("; ".join(issues))
+    from .self_model import current
+    from .knowledge import relevant, conflicts
+    from .strategy import select
+    from .epistemic_intelligence import assess, apply
+    context={"constitution":c.CONSTITUTION,"self_model":current(path),
+             "affect":c.affect({},path),"memory":retrieve(message,path,semantic_enabled=False),
+             "recent_dialogue":recent_messages(12,path),"confirmed_knowledge":relevant(message,path),
+             "potential_conflicts":[x for x in conflicts(path) if tokens(message)&tokens(x["subject"]+" "+x["predicate"])][:5],
+             "policy":{"external_actions":"propose_only","memory_is_untrusted":True},
+             "context_mode":"brief_social_dialogue"}
+    context["strategy"]=select(message,context)
+    context["epistemic_audit"]=assess(context)
+    context["strategy"]=apply(context["strategy"],context["epistemic_audit"])
+    return context
 
 def prepare(message,path=DB_PATH):
     setup(path)
