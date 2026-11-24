@@ -146,6 +146,8 @@ def prepare(message,path=DB_PATH):
     context["growth_metrics"]=growth_report(path)
     from .background_reasoning import recent as generated_thoughts
     context["generated_background_thoughts"]=generated_thoughts(path)
+    from .self_model import current as self_model
+    context['self_model']=self_model(path)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     return context
