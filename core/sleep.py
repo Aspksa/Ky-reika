@@ -51,6 +51,8 @@ def consolidate(path=DB_PATH):
     synthesize_research(path)
     from .theory_memory import refresh as refresh_theories
     refresh_theories(path)
+    from .theory_review import run as review_theories
+    review_theories(path)
     from .research_goals import refresh as refresh_goals
     refresh_goals(path)
     from .intellectual_goals import refresh as prioritize_goals
