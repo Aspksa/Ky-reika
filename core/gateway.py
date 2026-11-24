@@ -101,6 +101,10 @@ def conversation_payload(message,context):
     return messages(PERSONA+instruction+json.dumps(selected,ensure_ascii=False),message,context)
 
 def chat(message,path=DB_PATH):
+    from .chat_control import execute
+    local=execute(message,path)
+    if local is not None:
+        return local[0]
     started=monotonic()
     model=os.environ.get("CLOUD_MODEL","")
     if not model:
@@ -131,6 +135,11 @@ def chat(message,path=DB_PATH):
 
 def stream_chat(message,path=DB_PATH,*,progress=None):
     """Yield visible text only; save the complete answer after successful EOF."""
+    from .chat_control import execute
+    local=execute(message,path)
+    if local is not None:
+        yield local[0]
+        return local[1]
     started=monotonic()
     first_token=None
     base=os.environ.get("CLOUD_API_BASE","").rstrip("/")
