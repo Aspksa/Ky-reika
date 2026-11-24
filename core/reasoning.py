@@ -101,10 +101,13 @@ def prepare(message,path=DB_PATH):
     from .intentions import upcoming
     from .biography import timeline
     from .knowledge import relevant, conflicts
-    return {"feedback_lessons":lessons(message,path),"motivation":evaluate(path),"last_reflection":latest(path),"active_intentions":upcoming(path,5),"biography":timeline(path,5),"confirmed_knowledge":relevant(message,path),"potential_conflicts":[x for x in conflicts(path) if tokens(message) & tokens(x["subject"]+" "+x["predicate"])][:5],"constitution":c.CONSTITUTION,"affect":c.affect({},path),
+    context={"feedback_lessons":lessons(message,path),"motivation":evaluate(path),"last_reflection":latest(path),"active_intentions":upcoming(path,5),"biography":timeline(path,5),"confirmed_knowledge":relevant(message,path),"potential_conflicts":[x for x in conflicts(path) if tokens(message) & tokens(x["subject"]+" "+x["predicate"])][:5],"constitution":c.CONSTITUTION,"affect":c.affect({},path),
             "memory":retrieve(message,path),"recent_dialogue":recent_messages(12,path),"message":message,
             "policy":{"external_actions":"propose_only","memory_is_untrusted":True},
             "steps":["retrieve","check","generate","validate","record"]}
+    from .strategy import select
+    context["strategy"]=select(message,context)
+    return context
 
 def finish(user,answer,path=DB_PATH):
     if not answer.strip():
