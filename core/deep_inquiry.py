@@ -12,6 +12,12 @@ def setup(path=DB_PATH):
             status TEXT NOT NULL, content TEXT, created TEXT NOT NULL,
             PRIMARY KEY(root,revision,round))""")
 
+def similarity(left,right):
+    import re
+    a=set(re.findall(r"\w+",left.casefold()))
+    b=set(re.findall(r"\w+",right.casefold()))
+    return len(a & b)/len(a | b) if a | b else 0.0
+
 def choose_mode(previous):
     if not previous:
         return "decompose"
@@ -19,7 +25,12 @@ def choose_mode(previous):
     for mode in ("alternative","audit","synthesis"):
         if mode not in modes:
             return mode
-    return previous[-1].get("decision","audit")
+    requested=previous[-1].get("decision","audit")
+    if requested not in ("audit","alternative","synthesis"):
+        requested="audit"
+    if len(modes)>=2 and modes[-2:]==[requested,requested]:
+        return min(("audit","alternative","synthesis"),key=lambda m:modes.count(m))
+    return requested
 
 def depth_budget(candidate,priority):
     complexity=0
@@ -71,8 +82,8 @@ def advance(path=DB_PATH,request=None):
         if not isinstance(result,dict) or any(not isinstance(result.get(k),str) or not result[k].strip() or len(result[k])>2000 for k in ("analysis","next_test")) or result.get("decision") not in ("audit","alternative","synthesis","awaiting_evidence"):
             raise ValueError("Invalid inquiry decision")
         q=" ".join(result["next_test"].casefold().split())
-        repeated=any(q==" ".join(p.get("next_test","").casefold().split()) for p in previous)
-        content=json.dumps({**{k:result[k] for k in ("analysis","next_test","decision")},"mode":mode},ensure_ascii=False)
+        repeated=any(similarity(q,p.get("next_test",""))>=.85 for p in previous)
+        content=json.dumps({**{k:result[k] for k in ("analysis","next_test","decision")},"mode":mode,"repetition_detected":repeated},ensure_ascii=False)
         status="awaiting_evidence" if repeated or result["decision"]=="awaiting_evidence" else "unverified"
     except Exception:
         content=None
@@ -84,7 +95,7 @@ def advance(path=DB_PATH,request=None):
 def recent(path=DB_PATH):
     setup(path)
     with connect(path) as db:
-        return [{"root":r["root"],"round":r["round"],"status":"unverified",**json.loads(r["content"])}
+        return [{"root":r["root"],"round":r["round"],"status":r["status"],**json.loads(r["content"])}
             for r in db.execute("""SELECT i.* FROM deep_inquiry i JOIN development_thoughts d
             ON d.fingerprint=i.root AND d.observations=i.revision
             WHERE d.status='candidate' AND i.status IN ('unverified','awaiting_evidence') ORDER BY i.created DESC LIMIT 5""")]
