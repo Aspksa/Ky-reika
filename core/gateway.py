@@ -122,6 +122,8 @@ def chat(message,path=DB_PATH):
 
 def stream_chat(message,path=DB_PATH,*,progress=None):
     """Yield visible text only; save the complete answer after successful EOF."""
+    started=monotonic()
+    first_token=None
     base=os.environ.get("CLOUD_API_BASE","").rstrip("/")
     key=os.environ.get("CLOUD_API_KEY","")
     model=os.environ.get("CLOUD_MODEL","")
@@ -133,6 +135,7 @@ def stream_chat(message,path=DB_PATH,*,progress=None):
     context["dialogue_style"]=profile(message,path)
     from .integral_intelligence import coordinate
     context["integral_intelligence"]=coordinate(message,context)
+    logging.info("Stream context prepared in %.3fs; mode=%s depth=%s",monotonic()-started,context.get("context_mode","full"),context["integral_intelligence"]["depth"])
     if progress:
         progress("connecting")
     payload={"model":model,"stream":True,"max_completion_tokens":token_budget(message,context),
@@ -161,6 +164,9 @@ def stream_chat(message,path=DB_PATH,*,progress=None):
                             continue
                         chunk=choice.get("delta",{}).get("content")
                         if isinstance(chunk,str) and chunk:
+                            if first_token is None:
+                                first_token=monotonic()
+                                logging.info("Stream first text in %.3fs",first_token-started)
                             parts.append(chunk)
                             yield chunk
                         if choice.get("finish_reason") in ("stop","length"):
@@ -176,3 +182,4 @@ def stream_chat(message,path=DB_PATH,*,progress=None):
         raise RuntimeError("Incomplete or empty model stream")
     reasoning.finish(message,"".join(parts),path,strategy=context["strategy"])
     enqueue_learning(message,path)
+    logging.info("Stream completed in %.3fs; visible characters=%d",monotonic()-started,sum(map(len,parts)))
