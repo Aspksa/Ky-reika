@@ -172,6 +172,8 @@ def prepare(message,path=DB_PATH):
     context['prediction_checks']=prediction_checks(path)
     from .prediction_learning import profile as prediction_learning
     context['prediction_learning']=prediction_learning(path)
+    from .knowledge_transfer import suggest as transfer_experience
+    context['knowledge_transfer']=transfer_experience(message,context)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     from .metacognition import assess as assess_thinking, record as record_thinking, apply as apply_thinking
