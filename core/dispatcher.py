@@ -30,7 +30,7 @@ STAGES = (
         ("theoretical","theoretical_intelligence","refresh",("discovery",)),
         ("world","world_model","refresh",("theoretical",)),
         ("training","intelligence_training","refresh",()),
-        ("self","self_model","refresh",("reflection","priorities","identity")),
+        ("self","self_model","refresh",("reflection","priorities","identity","learning")),
         ("health","homeostasis","refresh",("revision",)),
         ("initiative","initiative","generate",("reflection","priorities")),
 
