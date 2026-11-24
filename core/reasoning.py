@@ -188,6 +188,8 @@ def prepare(message,path=DB_PATH):
     context["creative_candidates"]=creative_candidates(message,path)
     from .intelligence_training import latest as training_report
     context["intelligence_training"]=training_report(path)
+    from .discovery_lab import recent as discoveries
+    context["discovery_predictions"]=discoveries(path)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     from .metacognition import assess as assess_thinking, record as record_thinking, apply as apply_thinking
