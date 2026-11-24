@@ -108,6 +108,8 @@ def prepare(message,path=DB_PATH):
     from .strategy import select
     from .planning import active
     context["next_plan_steps"]=active(path)
+    from .initiative import pending
+    context["initiative_proposals"]=pending(path)
     context["strategy"]=select(message,context)
     return context
 
