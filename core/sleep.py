@@ -31,6 +31,8 @@ def consolidate(path=DB_PATH):
     generate_ideas(path)
     from .growth_metrics import snapshot
     snapshot(path)
+    from .self_model import refresh as refresh_self
+    refresh_self(path)
     from .background_reasoning import run as background_review
     background_review(path)
     return proposals
