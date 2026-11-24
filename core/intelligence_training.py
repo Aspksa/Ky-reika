@@ -21,6 +21,8 @@ def refresh(path=DB_PATH):
         report["method_experiments"]=compare(seed)
         from .generative_methods import experiment
         report["generated_methods"]=experiment(seed)
+        from .method_library import record
+        report["method_selection"]=record(db,report["generated_methods"])
         report["priorities"]=[{"skill":k,"action":"inspect failed cases and validate corrections"} for k in sorted(set(report["weaknesses"]+baseline["weaknesses"]))]
         report["status"]="practice_required" if report["priorities"] else "local_checks_passed"
         db.execute("INSERT INTO intelligence_training(report,created) VALUES (?,?)",(json.dumps(report),now()))
