@@ -50,3 +50,24 @@ def relevant(query,path=DB_PATH):
         rows=[dict(r) for r in db.execute("SELECT * FROM knowledge_versions WHERE status='current'")]
     matches=[r for r in rows if terms & tokens(r["subject"]+" "+r["predicate"]+" "+r["value"])]
     return sorted(matches,key=lambda r:(r["confidence"],r["id"]),reverse=True)[:8]
+
+def conflicts(path=DB_PATH,limit=50):
+    """Different values for the same subject and predicate are potential conflicts."""
+    setup(path)
+    with connect(path) as db:
+        return [dict(r) for r in db.execute("""
+            SELECT p.id AS pending_id,c.id AS current_id,p.subject,p.predicate,
+                   p.value AS proposed_value,c.value AS current_value,
+                   p.source AS proposed_source,c.source AS current_source
+            FROM knowledge_versions p JOIN knowledge_versions c
+            ON p.subject=c.subject AND p.predicate=c.predicate
+            WHERE p.status='pending' AND c.status='current'
+              AND trim(p.value)!=trim(c.value)
+            ORDER BY p.id DESC LIMIT ?""",(max(1,min(500,int(limit))),))]
+
+def reject(version_id,path=DB_PATH):
+    setup(path)
+    with connect(path) as db:
+        cur=db.execute("UPDATE knowledge_versions SET status='rejected',ended=? WHERE id=? AND status='pending'",(now(),version_id))
+        if cur.rowcount!=1:
+            raise ValueError("No pending version")
