@@ -18,9 +18,12 @@ def report(path=DB_PATH):
         metrics.update({"trait_"+r["name"]:r["value"] for r in personality["traits"]})
         metrics.update({"affect_"+r["name"]:round(r["value"]*100,2) for r in personality["affect"]})
         return_payload_personality=personality
+        from .research_statistics import report as research_report
+        research=research_report(db,tables)
+        metrics.update({"research_"+k:v for k,v in research["counts"].items()})
         from .activity_log import recent
         from .skill_registry import catalog
-        return {"time":now(),"metrics":metrics,"personality":return_payload_personality,"skills":catalog(db,tables,stages),"activity":recent(db),"stages":[{"stage":name,"module":module,**stages.get(name,{"status":"unobserved"})} for name,module,_,_ in STAGES]}
+        return {"time":now(),"metrics":metrics,"personality":return_payload_personality,"research":research,"skills":catalog(db,tables,stages),"activity":recent(db),"stages":[{"stage":name,"module":module,**stages.get(name,{"status":"unobserved"})} for name,module,_,_ in STAGES]}
 
 def snapshot(path=DB_PATH):
     import json
