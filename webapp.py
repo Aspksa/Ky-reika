@@ -39,6 +39,11 @@ class Handler(BaseHTTPRequestHandler):
         if self.path=="/":
             html=(ROOT/"index.html").read_text(encoding="utf-8").replace("</head>",'<meta name="session-token" content="'+TOKEN+'"></head>')
             self.send_data(html.encode(),"text/html; charset=utf-8")
+        elif self.path=="/api/initiative":
+            if self.headers.get("X-Session-Token")!=TOKEN:
+                return self.reply({"error":"Forbidden"},403)
+            from core.initiative import pending
+            return self.reply({"initiatives":pending()[:1]})
         elif self.path=="/assets/avatar.png" and (ROOT/"assets/avatar.png").is_file():
             self.send_data((ROOT/"assets/avatar.png").read_bytes(),"image/png")
         else:
