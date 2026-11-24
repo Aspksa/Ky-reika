@@ -6,10 +6,10 @@ from .database import DB_PATH, connect, now
 from .research import setup as init
 
 def run(path=DB_PATH, request=None):
-    if os.environ.get("CLOUD_BACKGROUND_THINKING")!="1":
+    if os.environ.get("CLOUD_BACKGROUND_THINKING","1")!="1":
         return False
     model=os.environ.get("CLOUD_MODEL","")
-    if not model:
+    if not model or (request is None and not (os.environ.get("CLOUD_API_KEY") and os.environ.get("CLOUD_API_BASE","").startswith("https://"))):
         return False
     limit=max(0,min(24,int(os.environ.get("CLOUD_BACKGROUND_DAILY_CALLS","4"))))
     init(path)
