@@ -8,6 +8,7 @@ from threading import Thread, Lock
 from time import monotonic
 from urllib.request import Request, urlopen
 from urllib.parse import urlparse
+from .resource_priority import wait_for_idle
 from . import reasoning
 from .database import DB_PATH
 
@@ -19,6 +20,7 @@ def _learn_loop():
     while True:
         message,path,configuration=_learning_queue.get()
         try:
+            wait_for_idle()
             if configuration!=tuple(os.environ.get(k,"") for k in ("CLOUD_API_BASE","CLOUD_API_KEY","CLOUD_MODEL")):
                 logging.warning("Skipping learning job after model configuration changed")
                 continue
