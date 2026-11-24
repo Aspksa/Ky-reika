@@ -43,10 +43,13 @@ def derive(path=DB_PATH):
             item={"sources":sorted({s for e in evidence for s in e["sources"]}),
                   "rules":sorted({rule["id"]}|{s for e in evidence for s in e["rules"]}),
                   "confidence":min(e["confidence"] for e in evidence)}
-            known[conclusion]=item
+            conflict=any(f[:2]==conclusion[:2] and f[2]!=conclusion[2] for f in facts)
+            if not conflict:
+                known[conclusion]=item
             results.append({"conclusion":conclusion,"kind":rule["kind"],**item,
-                "conflicts_with_confirmed":any(f[:2]==conclusion[:2] and f[2]!=conclusion[2] for f in facts)})
-            changed=True
+                "conflicts_with_confirmed":conflict})
+            changed=changed or not conflict
         if not changed:
             break
-    return results
+    unique={tuple(r["conclusion"]):r for r in results}
+    return list(unique.values())
