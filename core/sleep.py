@@ -12,6 +12,8 @@ def consolidate(path=DB_PATH):
             WHERE source IN (SELECT id FROM cognition_memory WHERE usage_count>=3 AND level!='archive')
               AND target IN (SELECT id FROM cognition_memory WHERE usage_count>=3 AND level!='archive')""")
         cognition.audit(db,"sleep_completed",{"proposals":proposals})
+    from .memory_graph import consolidate as consolidate_graph
+    consolidate_graph(path)
     from .reflection import record
     record(path)
     from .revision import revise
