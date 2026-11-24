@@ -39,6 +39,7 @@ def consolidate(path=DB_PATH):
         ("identity","intellectual_identity","refresh",("lessons",)),
         ("goals","research_goals","refresh",("research",)),
         ("priorities","intellectual_goals","refresh",("goals",)),
+        ("discovery","discovery_lab","refresh",()),
         ("training","intelligence_training","refresh",()),
         ("health","homeostasis","refresh",()),
     ],path)
