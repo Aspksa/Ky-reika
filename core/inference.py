@@ -1,6 +1,8 @@
 """Explicit rule-based deductions; causal claims require explicit causal rules."""
 import json
 import logging
+from functools import lru_cache
+from copy import deepcopy
 from time import perf_counter_ns
 from .database import DB_PATH, connect
 from .knowledge import setup as init
@@ -30,8 +32,17 @@ def add_rule(premises,conclusion,kind="deductive",path=DB_PATH):
 def derive(path=DB_PATH):
     setup(path)
     with connect(path) as db:
-        facts={triple((r["subject"],r["predicate"],r["value"])):{"sources":[r["id"]],"rules":[],"confidence":r["confidence"]} for r in db.execute("SELECT * FROM knowledge_versions WHERE status='current'")}
+        db.execute("BEGIN")
+        facts={triple((r["subject"],r["predicate"],r["value"])):{"sources":[r["id"]],"rules":[],"confidence":r["confidence"]} for r in db.execute("SELECT * FROM knowledge_versions WHERE status='current' ORDER BY id")}
         rules=[(r["id"],r["kind"],[tuple(p) for p in json.loads(r["premises"])],tuple(json.loads(r["conclusion"]))) for r in db.execute("SELECT * FROM inference_rules ORDER BY id LIMIT 500")]
+    snapshot=json.dumps([list(facts.items()),rules],ensure_ascii=False,separators=(",",":"))
+    return deepcopy(_derive_snapshot(str(path),snapshot))
+
+@lru_cache(maxsize=8)
+def _derive_snapshot(path,snapshot):
+    raw_facts,raw_rules=json.loads(snapshot)
+    facts={tuple(f):e for f,e in raw_facts}
+    rules=[(rid,kind,[tuple(p) for p in premises],tuple(c)) for rid,kind,premises,c in raw_rules]
     fact_values={f[:2]:f[2] for f in facts}
     def contradicts(c):
         return c[:2] in fact_values and fact_values[c[:2]]!=c[2]
