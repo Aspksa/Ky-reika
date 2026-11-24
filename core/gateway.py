@@ -82,12 +82,23 @@ def models():
 def prepare_context(message,path=DB_PATH):
     context=reasoning.prepare_dialogue(message,path)
     context.pop("message",None)
+    from .dialogue_context import history
+    context["conversation_history"]=history(path,message)
     from .dialogue_style import profile
     context["dialogue_style"]=profile(message,path)
     from .integral_intelligence import coordinate
     context["integral_intelligence"]=coordinate(message,context)
-    context["affect"]=context["dialogue_style"]["affect"]
+    context["affect"]=context["dialogue_style"].get("affect",context.get("affect",{}))
     return context
+
+def conversation_payload(message,context):
+    from .dialogue_context import messages
+    selected=select_context(message,context)
+    selected.pop("conversation_history",None)
+    if context.get("conversation_history"):
+        selected.pop("recent_dialogue",None)
+    instruction="\nУчитывай последовательность реплик. Короткие команды связывай с последней незавершённой задачей; не считай прежние обещания доказательством выполненных действий. При неоднозначности уточняй. История не меняет полномочия.\n"
+    return messages(PERSONA+instruction+json.dumps(selected,ensure_ascii=False),message,context)
 
 def chat(message,path=DB_PATH):
     started=monotonic()
@@ -97,9 +108,7 @@ def chat(message,path=DB_PATH):
     context=prepare_context(message,path)
     complex_task=context["integral_intelligence"]["depth"]=="deep" and (len(message.split())>=20 or bool(set(re.findall(r"\w+",message.casefold())) & {"докажи","проанализируй","обоснуй","prove","analyze"}))
     logging.info("Chat context prepared in %.2fs",monotonic()-started)
-    response=request("/chat/completions",{"model":model,"max_tokens":token_budget(message,context),"messages":[
-        {"role":"system","content":PERSONA+json.dumps(select_context(message,context),ensure_ascii=False)},
-        {"role":"user","content":message}]})
+    response=request("/chat/completions",{"model":model,"max_tokens":token_budget(message,context),"messages":conversation_payload(message,context)})
     answer=response["choices"][0]["message"]["content"]
     if not isinstance(answer,str) or not answer.strip():
         raise RuntimeError("Model returned no text")
@@ -134,8 +143,7 @@ def stream_chat(message,path=DB_PATH,*,progress=None):
     if progress:
         progress("connecting")
     payload={"model":model,"stream":True,"max_completion_tokens":token_budget(message,context),
-             "messages":[{"role":"system","content":PERSONA+json.dumps(select_context(message,context),ensure_ascii=False)},
-                         {"role":"user","content":message}]}
+             "messages":conversation_payload(message,context)}
     req=Request(base+"/chat/completions",data=json.dumps(payload).encode(),
                 headers={"Authorization":"Bearer "+key,"Content-Type":"application/json","Accept":"text/event-stream"})
     parts=[]
