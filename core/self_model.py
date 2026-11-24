@@ -19,16 +19,19 @@ def refresh(path=DB_PATH):
     consistency=report(path)
     from .character_development import report as character_report
     development=character_report(path)
+    from .inner_motivation import profile as motivation_profile
+    inner=motivation_profile(path)
     with connect(path) as db:
         counts=dict(db.execute("SELECT kind,count(*) FROM biography_events GROUP BY kind"))
         dialogue_counts=dict(db.execute("SELECT role,count(*) FROM messages GROUP BY role"))
-        state={"schema":4,"identity":"KYUREIKA","name":"Кюрейка",
+        state={"schema":5,"identity":"KYUREIKA","name":"Кюрейка",
                "title":"Королева Девяти Хвостов","nature":"persistent software persona",
                "relationship":{"role":"operator","address":"хозяин","style":"warm, loyal, dignified","identity_verified":False},
                "capabilities":{"persistent_memory":"SQLite","dialogue_history":True,"reasoning":True,"physical_body":False,"recall":"retrieved records only"},
                "dialogue_counts":dialogue_counts,
                "communication":cognition.CONSTITUTION["communication"],
                "traits":priorities["traits"],"priorities":priorities["priorities"],
+               "inner_motivation":inner,
                "communication_experience":experience,
                "personality_consistency":consistency,
                "character_development":{"traits":development["traits"],"pending_proposal_ids":[p["id"] for p in development["proposals"] if p["status"]=="pending"],"approval_required":True},
@@ -45,7 +48,7 @@ def current(path=DB_PATH):
     with connect(path) as db:
         row=db.execute("SELECT content FROM self_model_versions ORDER BY id DESC LIMIT 1").fetchone()
     state=json.loads(row[0]) if row else {}
-    return state if state.get("schema")==4 else refresh(path)
+    return state if state.get("schema")==5 else refresh(path)
 
 def history(path=DB_PATH,limit=10):
     setup(path)
