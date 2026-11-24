@@ -43,3 +43,20 @@ def active(path=DB_PATH):
             AND NOT EXISTS (SELECT 1 FROM plan_steps p WHERE p.intention_id=s.intention_id
             AND p.position<s.position AND p.completed IS NULL)
             ORDER BY i.priority DESC,s.id LIMIT 10""")]
+
+def progress(path=DB_PATH):
+    setup(path)
+    with connect(path) as db:
+        rows=db.execute("""SELECT i.id,i.description,i.priority,i.due,i.status,
+            count(s.id) AS total,count(s.completed) AS done
+            FROM intentions i LEFT JOIN plan_steps s ON s.intention_id=i.id
+            WHERE i.status IN ('active','pending')
+            GROUP BY i.id ORDER BY i.priority DESC,i.id LIMIT 100""")
+        result=[]
+        for row in rows:
+            item=dict(row)
+            item["percent"]=round(100*item["done"]/item["total"]) if item["total"] else None
+            item["overdue"]=bool(item["due"] and item["due"]<now() and item["status"]=="active")
+            item["ready_to_finish"]=bool(item["status"]=="active" and item["total"] and item["done"]==item["total"])
+            result.append(item)
+        return result
