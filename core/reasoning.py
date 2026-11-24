@@ -158,6 +158,8 @@ def prepare(message,path=DB_PATH):
     context['followup_questions']=followup_questions(path)
     from .followup_execution import recent as followup_results
     context['followup_results']=followup_results(path)
+    from .rule_validation import recent as rule_assessments
+    context['rule_assessments']=rule_assessments(path)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     return context
