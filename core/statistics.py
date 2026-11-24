@@ -13,8 +13,9 @@ def report(path=DB_PATH):
             aggregate,_,where=expression.partition(" WHERE ")
             metrics[key]=db.execute("SELECT "+aggregate+" FROM "+table+(" WHERE "+where if where else "")).fetchone()[0] if table in tables else None
         stages={r["stage"]:dict(r) for r in db.execute("SELECT * FROM maintenance_status")} if "maintenance_status" in tables else {}
+        from .activity_log import recent
         from .skill_registry import catalog
-        return {"time":now(),"metrics":metrics,"skills":catalog(db,tables,stages),"stages":[{"stage":name,"module":module,**stages.get(name,{"status":"unobserved"})} for name,module,_,_ in STAGES]}
+        return {"time":now(),"metrics":metrics,"skills":catalog(db,tables,stages),"activity":recent(db),"stages":[{"stage":name,"module":module,**stages.get(name,{"status":"unobserved"})} for name,module,_,_ in STAGES]}
 
 def snapshot(path=DB_PATH):
     import json
@@ -22,6 +23,13 @@ def snapshot(path=DB_PATH):
     data=report(path)
     with connect(path) as db:
         db.execute("CREATE TABLE IF NOT EXISTS statistics_history (bucket INTEGER PRIMARY KEY, time TEXT NOT NULL, metrics TEXT NOT NULL)")
+        previous=db.execute("SELECT metrics FROM statistics_history ORDER BY bucket DESC LIMIT 1").fetchone()
+        if previous:
+            from .activity_log import append
+            old=json.loads(previous["metrics"])
+            for key,value in data["metrics"].items():
+                if type(value) is int and type(old.get(key)) is int and value!=old[key]:
+                    append(db,"metric",key,"changed",value-old[key])
         bucket=int(time.time())//60
         db.execute("INSERT OR REPLACE INTO statistics_history VALUES (?,?,?)",(bucket,data["time"],json.dumps(data["metrics"])))
         db.execute("DELETE FROM statistics_history WHERE bucket<?",(bucket-525600,))

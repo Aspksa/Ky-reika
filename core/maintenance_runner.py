@@ -45,6 +45,8 @@ def run(specs,path):
                 ON CONFLICT(stage) DO UPDATE SET status=excluded.status,
                 failures=CASE WHEN excluded.status='failed' THEN failures+1 WHEN excluded.status='ok' THEN 0 ELSE failures END,
                 updated=excluded.updated""",(name,status,int(status=="failed"),now()))
+            from .activity_log import append
+            append(db,"stage",name,status)
     def action(module,function):
         def invoke():
             target=getattr(import_module("."+module,__package__),function)
