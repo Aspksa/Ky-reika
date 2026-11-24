@@ -30,12 +30,15 @@ def derive(path=DB_PATH):
     with connect(path) as db:
         facts={triple((r["subject"],r["predicate"],r["value"])):{"sources":[r["id"]],"rules":[],"confidence":r["confidence"]} for r in db.execute("SELECT * FROM knowledge_versions WHERE status='current'")}
         rules=[(r["id"],r["kind"],[tuple(p) for p in json.loads(r["premises"])],tuple(json.loads(r["conclusion"]))) for r in db.execute("SELECT * FROM inference_rules ORDER BY id LIMIT 500")]
-    def closure(blocked):
+    fact_values={f[:2]:f[2] for f in facts}
+    def contradicts(c):
+        return c[:2] in fact_values and fact_values[c[:2]]!=c[2]
+    def closure(blocked,excluded=None):
         known=dict(facts)
-        for _ in range(10):
+        for _ in range(len(rules)+1):
             changed=False
             for rid,kind,premises,c in rules:
-                if c in known or c in blocked or any(f[:2]==c[:2] and f!=c for f in facts):
+                if rid==excluded or c in known or c in blocked or contradicts(c):
                     continue
                 if not all(p in known for p in premises):
                     continue
@@ -54,6 +57,8 @@ def derive(path=DB_PATH):
     blocked={c for c in initial if c not in facts and len(values[c[:2]])>1}
     clean=closure(blocked)
     results=[]
+    alternate_cache={}
+    # Bound retained closures to avoid unbounded memory growth.
     for c,e in initial.items():
         if c in facts:
             continue
@@ -62,20 +67,18 @@ def derive(path=DB_PATH):
         if c in clean:
             # Recompute with each rule in the selected proof disabled.
             for excluded in proof["rules"][:10]:
-                subset=[r for r in rules if r[0]!=excluded]
-                original=rules[:]
-                rules[:]=subset
-                try:
-                    alternate=closure(blocked).get(c)
-                finally:
-                    rules[:]=original
+                if excluded not in alternate_cache:
+                    if len(alternate_cache)>=16:
+                        alternate_cache.pop(next(iter(alternate_cache)))
+                    alternate_cache[excluded]=closure(blocked,excluded)
+                alternate=alternate_cache[excluded].get(c)
                 if alternate and alternate!=proof and alternate not in alternatives:
                     alternatives.append(alternate)
         results.append({"conclusion":c,**proof,"alternative_proofs":alternatives,
             "conflicts_with_confirmed":c not in clean,
             **({"conflict_reason":"inconsistent_derived_proof"} if c not in clean else {})})
     for rid,kind,premises,c in rules:
-        if any(f[:2]==c[:2] and f!=c for f in facts) and all(p in clean for p in premises):
+        if contradicts(c) and all(p in clean for p in premises):
             evidence=[clean[p] for p in premises]
             results.append({"conclusion":c,"kind":kind,"sources":sorted({s for e in evidence for s in e["sources"]}),
                 "rules":sorted({rid}|{s for e in evidence for s in e["rules"]}),
