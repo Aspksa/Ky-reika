@@ -54,11 +54,16 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write((json.dumps(event,ensure_ascii=False)+"\n").encode())
             self.wfile.flush()
         try:
-            for chunk in gateway.stream_chat(message):
+            emit({"stage":"context"})
+            for chunk in gateway.stream_chat(message,progress=lambda stage: emit({"stage":stage})):
                 emit({"delta":chunk})
             emit({"done":True})
         except (BrokenPipeError,ConnectionResetError):
             return
+        except HTTPError as exc:
+            emit({"error":f"Cloud.ru HTTP {exc.code}"})
+        except (URLError,TimeoutError):
+            emit({"error":"Соединение с Cloud.ru прервано. Повторите запрос."})
         except Exception as exc:
             logging.error("Chat stream failed: %s",type(exc).__name__)
             try:
