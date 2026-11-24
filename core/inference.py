@@ -29,39 +29,55 @@ def derive(path=DB_PATH):
     setup(path)
     with connect(path) as db:
         facts={triple((r["subject"],r["predicate"],r["value"])):{"sources":[r["id"]],"rules":[],"confidence":r["confidence"]} for r in db.execute("SELECT * FROM knowledge_versions WHERE status='current'")}
-        rules=list(db.execute("SELECT * FROM inference_rules ORDER BY id LIMIT 500"))
-    known=dict(facts)
-    results=[]
-    for _ in range(10):
-        changed=False
-        for rule in rules:
-            premises=[tuple(p) for p in json.loads(rule["premises"])]
-            conclusion=tuple(json.loads(rule["conclusion"]))
-            if conclusion in known or not all(p in known for p in premises):
-                continue
-            evidence=[known[p] for p in premises]
-            item={"sources":sorted({s for e in evidence for s in e["sources"]}),
-                  "rules":sorted({rule["id"]}|{s for e in evidence for s in e["rules"]}),
-                  "confidence":min(e["confidence"] for e in evidence)}
-            conflict=any(f[:2]==conclusion[:2] and f[2]!=conclusion[2] for f in facts)
-            if not conflict:
-                known[conclusion]=item
-            results.append({"conclusion":conclusion,"kind":rule["kind"],**item,
-                "conflicts_with_confirmed":conflict})
-            changed=changed or not conflict
-        if not changed:
-            break
-    unique={tuple(r["conclusion"]):r for r in results}
-    # Quarantine mutually inconsistent derived values and every proof using them.
+        rules=[(r["id"],r["kind"],[tuple(p) for p in json.loads(r["premises"])],tuple(json.loads(r["conclusion"]))) for r in db.execute("SELECT * FROM inference_rules ORDER BY id LIMIT 500")]
+    def closure(blocked):
+        known=dict(facts)
+        for _ in range(10):
+            changed=False
+            for rid,kind,premises,c in rules:
+                if c in known or c in blocked or any(f[:2]==c[:2] and f!=c for f in facts):
+                    continue
+                if not all(p in known for p in premises):
+                    continue
+                evidence=[known[p] for p in premises]
+                known[c]={"sources":sorted({s for e in evidence for s in e["sources"]}),
+                    "rules":sorted({rid}|{s for e in evidence for s in e["rules"]}),
+                    "confidence":min(e["confidence"] for e in evidence),"kind":kind}
+                changed=True
+            if not changed:
+                break
+        return known
+    initial=closure(set())
     values={}
-    for conclusion in known:
-        values.setdefault(conclusion[:2],set()).add(conclusion[2])
-    blocked={c for c in known if c not in facts and len(values[c[:2]])>1}
-    rule_map={r["id"]:r for r in rules}
-    for item in unique.values():
-        dependencies={tuple(p) for rid in item["rules"]
-                      for p in json.loads(rule_map[rid]["premises"])}
-        if tuple(item["conclusion"]) in blocked or dependencies & blocked:
-            item["conflicts_with_confirmed"]=True
-            item["conflict_reason"]="inconsistent_derived_proof"
-    return list(unique.values())
+    for c in initial:
+        values.setdefault(c[:2],set()).add(c[2])
+    blocked={c for c in initial if c not in facts and len(values[c[:2]])>1}
+    clean=closure(blocked)
+    results=[]
+    for c,e in initial.items():
+        if c in facts:
+            continue
+        proof=clean.get(c,e)
+        alternatives=[]
+        if c in clean:
+            # Recompute with each rule in the selected proof disabled.
+            for excluded in proof["rules"][:10]:
+                subset=[r for r in rules if r[0]!=excluded]
+                original=rules[:]
+                rules[:]=subset
+                try:
+                    alternate=closure(blocked).get(c)
+                finally:
+                    rules[:]=original
+                if alternate and alternate!=proof and alternate not in alternatives:
+                    alternatives.append(alternate)
+        results.append({"conclusion":c,**proof,"alternative_proofs":alternatives,
+            "conflicts_with_confirmed":c not in clean,
+            **({"conflict_reason":"inconsistent_derived_proof"} if c not in clean else {})})
+    for rid,kind,premises,c in rules:
+        if any(f[:2]==c[:2] and f!=c for f in facts) and all(p in clean for p in premises):
+            evidence=[clean[p] for p in premises]
+            results.append({"conclusion":c,"kind":kind,"sources":sorted({s for e in evidence for s in e["sources"]}),
+                "rules":sorted({rid}|{s for e in evidence for s in e["rules"]}),
+                "confidence":min(e["confidence"] for e in evidence),"conflicts_with_confirmed":True})
+    return results
