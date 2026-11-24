@@ -29,6 +29,8 @@ def consolidate(path=DB_PATH):
     generate_ideas(path)
     from .growth_metrics import snapshot
     snapshot(path)
+    from .background_reasoning import run as background_review
+    background_review(path)
     return proposals
 
 def start(path=DB_PATH,interval=3600):
