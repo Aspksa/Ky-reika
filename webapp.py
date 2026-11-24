@@ -60,9 +60,17 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.flush()
         try:
             emit({"stage":"context"})
-            for chunk in gateway.stream_chat(message,progress=lambda stage: emit({"stage":stage})):
-                emit({"delta":chunk})
-            emit({"done":True})
+            stream=gateway.stream_chat(message,progress=lambda stage: emit({"stage":stage}))
+            try:
+                while True:
+                    try:
+                        chunk=next(stream)
+                    except StopIteration as completed:
+                        emit({"done":True,"message_id":completed.value})
+                        break
+                    emit({"delta":chunk})
+            finally:
+                stream.close()
         except (BrokenPipeError,ConnectionResetError):
             return
         except HTTPError as exc:
@@ -76,13 +84,22 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 pass
     def do_POST(self):
-        if self.path not in ("/api/chat","/api/chat/stream","/api/cloud/models","/api/cloud/connect") or self.headers.get("X-Session-Token")!=TOKEN:
+        if self.path not in ("/api/chat","/api/chat/stream","/api/cloud/models","/api/cloud/connect","/api/feedback") or self.headers.get("X-Session-Token")!=TOKEN:
             return self.reply({"error":"Forbidden"},403)
         try:
             length=int(self.headers.get("Content-Length","0"))
             if not 0<length<=65536:
                 return self.reply({"error":"Invalid size"},400)
             payload=json.loads(self.rfile.read(length))
+            if self.path=="/api/feedback":
+                from core.learning import record
+                try:
+                    if type(payload.get("message_id")) is not int or type(payload.get("rating")) is not int:
+                        raise ValueError("Invalid feedback")
+                    record(payload["message_id"],payload["rating"],payload.get("lesson",""))
+                except (ValueError,TypeError):
+                    return self.reply({"error":"Некорректная оценка"},400)
+                return self.reply({"saved":True})
             if self.path.startswith("/api/cloud/"):
                 key=payload["key"]
                 models=cloud_models(key)
