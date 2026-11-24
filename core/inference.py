@@ -52,4 +52,16 @@ def derive(path=DB_PATH):
         if not changed:
             break
     unique={tuple(r["conclusion"]):r for r in results}
+    # Quarantine mutually inconsistent derived values and every proof using them.
+    values={}
+    for conclusion in known:
+        values.setdefault(conclusion[:2],set()).add(conclusion[2])
+    blocked={c for c in known if c not in facts and len(values[c[:2]])>1}
+    rule_map={r["id"]:r for r in rules}
+    for item in unique.values():
+        dependencies={tuple(p) for rid in item["rules"]
+                      for p in json.loads(rule_map[rid]["premises"])}
+        if tuple(item["conclusion"]) in blocked or dependencies & blocked:
+            item["conflicts_with_confirmed"]=True
+            item["conflict_reason"]="inconsistent_derived_proof"
     return list(unique.values())
