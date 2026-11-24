@@ -47,6 +47,6 @@ def adapt(strategy,message,path=DB_PATH):
     result["learning_validation"]=validation
     if validation["preferred"]=="structured" and strategy["mode"]=="direct":
         result["mode"]="structured"
-        result["guidance"]=["Organize the response into clear reasoning and verification steps."]
+        result["guidance"]=list(dict.fromkeys(strategy.get("guidance",[])+["Organize the response into clear reasoning and verification steps."]))
     result["feedback_profile"]=report
     return result
