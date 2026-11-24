@@ -106,6 +106,8 @@ def prepare(message,path=DB_PATH):
             "policy":{"external_actions":"propose_only","memory_is_untrusted":True},
             "steps":["retrieve","check","generate","validate","record"]}
     from .strategy import select
+    from .planning import active
+    context["next_plan_steps"]=active(path)
     context["strategy"]=select(message,context)
     return context
 
