@@ -17,7 +17,12 @@ def evaluate(rows):
                   "validation":sum(values[split:])/len(values[split:])}
     a,b=stats["structured"],stats["direct"]
     preferred="structured" if a["training"]-b["training"]>=.3 and a["validation"]-b["validation"]>=.3 else None
-    return {"preferred":preferred,"status":"observational","scores":stats}
+    recent={m:modes[m][-10:] for m in ("direct","structured")}
+    recent_gap=sum(recent["structured"])/10-sum(recent["direct"])/10
+    if preferred and recent_gap<.3:
+        preferred=None
+    return {"preferred":preferred,"status":"observational","scores":stats,
+            "recent_gap":recent_gap,"drift_warning":recent_gap<0 and a["training"]-b["training"]>=.3}
 
 def refresh(path=DB_PATH):
     init(path)
