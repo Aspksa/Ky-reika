@@ -31,4 +31,11 @@ def chat(message,path=DB_PATH):
         {"role":"user","content":message}]})
     answer=response["choices"][0]["message"]["content"]
     reasoning.finish(message,answer,path)
+    if os.environ.get("CLOUD_EXTRACT_FACTS")=="1":
+        try:
+            from .extraction import extract
+            extract(message,request,model,path)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning("Optional knowledge extraction failed")
     return answer
