@@ -12,6 +12,7 @@ def profile(message,path=DB_PATH):
         signals={"affection":.9,"calm":.85}
     elif message.rstrip().endswith("?"):
         signals={"curiosity":.8}
-    return {"samples":len(rows),"typical_words":median(len(r.split()) for r in rows) if rows else None,
+    from .personality_experience import profile as experience_profile
+    return {"experience_preferences":experience_profile(path),"samples":len(rows),"typical_words":median(len(r.split()) for r in rows) if rows else None,
             "current_words":len(words),"affect":affect(signals,path),
             "guidance":"Match explicit request first; historical message length is only a weak style signal. Affect is simulated, not a diagnosis or a fact about the user."}
