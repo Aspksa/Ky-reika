@@ -182,6 +182,9 @@ def prepare(message,path=DB_PATH):
     context["metacognition"]=assess_thinking(context)
     record_thinking(context["metacognition"],path)
     context["strategy"]=apply_thinking(context["strategy"],context["metacognition"])
+    from .cognitive_integrity import assess as assess_integrity, apply as apply_integrity
+    context["cognitive_integrity"]=assess_integrity(context)
+    context["strategy"]=apply_integrity(context["strategy"],context["cognitive_integrity"])
     return context
 
 def finish(user,answer,path=DB_PATH,strategy=None):
