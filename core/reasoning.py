@@ -124,6 +124,8 @@ def prepare(message,path=DB_PATH):
     context["knowledge_chronology"]=chronology(message,path)
     from .modal import assess as assess_evidence
     context["evidence_states"]=assess_evidence(message,path)
+    from .analogy import analyze as compare_positions
+    context["analogical_dialectical"]=compare_positions(message,context)
     context["strategy"]=select(message,context)
     return context
 
