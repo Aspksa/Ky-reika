@@ -26,3 +26,12 @@ def route(message,history=()):
             return "deep"
         return "standard"
     return "deep"
+
+def research_requested(message):
+    """Conservative archive selection; unknown requests retain full context."""
+    words=set(re.findall(r"\w+",message.casefold()))
+    research_stems=("исслед","гипотез","теори","эксперимент","прогноз","открыти","развити","цел","иде","research","hypothes","theor","experiment","predict","discover","goal")
+    if any(word.startswith(research_stems) for word in words):
+        return True
+    # Only explicit calculation and proof tasks can omit the archive.
+    return not bool(words & {"рассчитай","вычисли","calculate","докажи","prove"})
