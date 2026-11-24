@@ -148,6 +148,8 @@ def prepare(message,path=DB_PATH):
     context["generated_background_thoughts"]=generated_thoughts(path)
     from .self_model import current as self_model
     context['self_model']=self_model(path)
+    from .research_goals import current as research_goals
+    context['research_goals']=research_goals(path)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     return context
