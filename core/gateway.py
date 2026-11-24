@@ -90,6 +90,8 @@ def chat(message,path=DB_PATH):
         raise RuntimeError("Configure CLOUD_MODEL")
     context=reasoning.prepare_dialogue(message,path)
     context.pop("message",None)
+    from .dialogue_style import profile
+    context["dialogue_style"]=profile(message,path)
     from .integral_intelligence import coordinate
     context["integral_intelligence"]=coordinate(message,context)
     complex_task=context["integral_intelligence"]["depth"]=="deep" and (len(message.split())>=20 or bool(set(re.findall(r"\w+",message.casefold())) & {"докажи","проанализируй","обоснуй","prove","analyze"}))
@@ -126,6 +128,8 @@ def stream_chat(message,path=DB_PATH,*,progress=None):
         raise RuntimeError("Cloud.ru is not configured")
     context=reasoning.prepare_dialogue(message,path)
     context.pop("message",None)
+    from .dialogue_style import profile
+    context["dialogue_style"]=profile(message,path)
     from .integral_intelligence import coordinate
     context["integral_intelligence"]=coordinate(message,context)
     if progress:
