@@ -45,6 +45,11 @@ def consolidate(path=DB_PATH):
         ("self","self_model","refresh",("reflection","priorities","identity")),
         ("health","homeostasis","refresh",()),
     ],path)
+    try:
+        from .gateway import process_learning
+        process_learning(path)
+    except Exception:
+        logging.exception("Background extraction will retry")
     return proposals
 
 def start(path=DB_PATH,interval=3600):
