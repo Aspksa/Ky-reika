@@ -55,6 +55,8 @@ def consolidate(path=DB_PATH):
     review_theories(path)
     from .prediction_checks import refresh as check_predictions
     check_predictions(path)
+    from .prediction_learning import refresh as learn_predictions
+    learn_predictions(path)
     from .research_goals import refresh as refresh_goals
     refresh_goals(path)
     from .intellectual_goals import refresh as prioritize_goals
