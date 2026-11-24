@@ -78,7 +78,7 @@ def chat(message,path=DB_PATH):
     model=os.environ.get("CLOUD_MODEL","")
     if not model:
         raise RuntimeError("Configure CLOUD_MODEL")
-    context=reasoning.prepare(message,path)
+    context=reasoning.prepare_dialogue(message,path)
     context.pop("message",None)
     from .integral_intelligence import coordinate
     context["integral_intelligence"]=coordinate(message,context)
@@ -114,7 +114,7 @@ def stream_chat(message,path=DB_PATH):
     model=os.environ.get("CLOUD_MODEL","")
     if urlparse(base).scheme!="https" or not key or not model:
         raise RuntimeError("Cloud.ru is not configured")
-    context=reasoning.prepare(message,path)
+    context=reasoning.prepare_dialogue(message,path)
     context.pop("message",None)
     from .integral_intelligence import coordinate
     context["integral_intelligence"]=coordinate(message,context)
