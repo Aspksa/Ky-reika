@@ -122,6 +122,8 @@ def prepare(message,path=DB_PATH):
     context["uncertainty"]=assess(context)
     from .scenarios import chronology
     context["knowledge_chronology"]=chronology(message,path)
+    from .modal import assess as assess_evidence
+    context["evidence_states"]=assess_evidence(message,path)
     context["strategy"]=select(message,context)
     return context
 
