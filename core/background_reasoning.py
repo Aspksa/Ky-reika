@@ -11,7 +11,6 @@ def run(path=DB_PATH, request=None):
     model=os.environ.get("CLOUD_MODEL","")
     if not model or (request is None and not (os.environ.get("CLOUD_API_KEY") and os.environ.get("CLOUD_API_BASE","").startswith("https://"))):
         return False
-    limit=max(0,min(24,int(os.environ.get("CLOUD_BACKGROUND_DAILY_CALLS","4"))))
     init(path)
     day=datetime.now(timezone.utc).date().isoformat()
     with connect(path) as db:
@@ -20,8 +19,6 @@ def run(path=DB_PATH, request=None):
             status TEXT NOT NULL, content TEXT, created TEXT NOT NULL,
             PRIMARY KEY(root,revision))""")
         db.execute("BEGIN IMMEDIATE")
-        if db.execute("SELECT count(*) FROM background_reviews WHERE day=?",(day,)).fetchone()[0]>=limit:
-            return False
         row=db.execute("""SELECT a.root,a.revision,a.question FROM research_agenda a
             JOIN development_thoughts d ON d.fingerprint=a.root
             WHERE d.status='candidate' AND a.revision=d.observations
