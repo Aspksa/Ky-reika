@@ -52,11 +52,39 @@ def derive(path=DB_PATH):
             if not changed:
                 break
         return known
+    def indexed_proofs(blocked,excluded=None):
+        import heapq
+        known=dict(facts)
+        eligible=[(rid,kind,premises,c) for rid,kind,premises,c in rules
+                  if rid!=excluded and c not in blocked and not contradicts(c)]
+        waiting={}
+        missing=[]
+        queue=[]
+        for i,(_,_,premises,c) in enumerate(eligible):
+            absent=set(premises)-known.keys()
+            missing.append(len(absent))
+            for p in absent:
+                waiting.setdefault(p,[]).append(i)
+            if not absent:
+                heapq.heappush(queue,(0,i))
+        while queue:
+            turn,i=heapq.heappop(queue)
+            rid,kind,premises,c=eligible[i]
+            if c in known:
+                continue
+            evidence=[known[p] for p in premises]
+            known[c]={"sources":sorted({s for e in evidence for s in e["sources"]}),
+                "rules":sorted({rid}|{s for e in evidence for s in e["rules"]}),
+                "confidence":min(e["confidence"] for e in evidence),"kind":kind}
+            for j in waiting.get(c,[]):
+                missing[j]-=1
+                if missing[j]==0:
+                    heapq.heappush(queue,(turn+int(j<=i),j))
+        return known
     trials=[]
     def closure(blocked,excluded=None):
         # Keep proof construction authoritative; compare the indexed reachability
         # algorithm on the exact same filtered rules before trusting its output.
-        from .structural_reasoning import closure as indexed
         eligible=[(premises,c) for rid,kind,premises,c in rules
                   if rid!=excluded and c not in blocked and not contradicts(c)]
         start=perf_counter_ns()
@@ -65,16 +93,14 @@ def derive(path=DB_PATH):
         start=perf_counter_ns()
         status="error"
         try:
-            predicted=indexed(facts,eligible)
-            status="match" if predicted==set(known) else "mismatch"
-            if predicted!=set(known):
-                import logging
+            predicted=indexed_proofs(blocked,excluded)
+            status="match" if predicted==known else "mismatch"
+            if predicted!=known:
                 logging.getLogger(__name__).warning("Indexed closure mismatch; retaining reference proofs")
         except Exception:
-            import logging
             logging.getLogger(__name__).exception("Indexed closure failed; retaining reference proofs")
         trials.append((status,reference_ns,perf_counter_ns()-start,len(eligible)))
-        return known
+        return predicted if status=="match" and trials[-1][2]<reference_ns else known
     initial=closure(set())
     values={}
     for c in initial:
