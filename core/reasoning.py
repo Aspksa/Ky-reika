@@ -79,7 +79,8 @@ def retrieve(query,path=DB_PATH):
     except Exception:
         import logging
         logging.getLogger(__name__).warning("Semantic memory unavailable; using lexical retrieval")
-    return {"direct":direct,"associated":related[:8],"semantic":semantic}
+    from .memory_graph import expand
+    return {"direct":direct,"associated":related[:8],"semantic":semantic,"graph_paths":expand(ids,path)}
 
 def reinforce(memory_id,reward,path=DB_PATH):
     reward=c.unit(reward)
