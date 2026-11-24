@@ -162,6 +162,10 @@ def prepare(message,path=DB_PATH):
     context['rule_assessments']=rule_assessments(path)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
+    from .metacognition import assess as assess_thinking, record as record_thinking, apply as apply_thinking
+    context["metacognition"]=assess_thinking(context)
+    record_thinking(context["metacognition"],path)
+    context["strategy"]=apply_thinking(context["strategy"],context["metacognition"])
     return context
 
 def finish(user,answer,path=DB_PATH,strategy=None):
