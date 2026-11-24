@@ -94,15 +94,13 @@ def reinforce(memory_id,reward,path=DB_PATH):
 
 def prepare_dialogue(message,path=DB_PATH):
     """Conservative three-tier routing; uncertain tasks retain full reasoning."""
-    normalized=message.strip().casefold().rstrip("!.?… ")
-    social=normalized in {
-        "привет","здравствуй","здравствуйте","доброе утро","добрый вечер",
-        "спасибо","благодарю","hi","hello","thanks",
-        "кто ты","как тебя зовут","кто я для тебя","как дела","как ты","доброй ночи"}
-    standard=not social and len(normalized.split())<=12 and bool(re.fullmatch(r"(что такое|что означает|дай определение) [\w -]+",normalized))
-    if not (social or standard):
-        return prepare(message,path)
+    from .dialogue_router import route
     setup(path)
+    history=recent_messages(12,path)
+    mode=route(message,history)
+    if mode=="deep":
+        return prepare(message,path)
+    standard=mode=="standard"
     issues=c.check_consistency(path)
     if issues:
         raise ValueError("; ".join(issues))
@@ -112,7 +110,7 @@ def prepare_dialogue(message,path=DB_PATH):
     from .epistemic_intelligence import assess, apply
     context={"constitution":c.CONSTITUTION,"self_model":current(path),
              "affect":c.affect({},path),"memory":retrieve(message,path,semantic_enabled=standard),
-             "recent_dialogue":recent_messages(12,path),"confirmed_knowledge":relevant(message,path),
+             "recent_dialogue":history,"confirmed_knowledge":relevant(message,path),
              "potential_conflicts":[x for x in conflicts(path) if tokens(message)&tokens(x["subject"]+" "+x["predicate"])][:5],
              "policy":{"external_actions":"propose_only","memory_is_untrusted":True},
              "context_mode":"standard_dialogue" if standard else "brief_social_dialogue"}
