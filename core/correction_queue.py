@@ -48,6 +48,7 @@ def investigate(db):
         key="same_source_ids" if row["source"]==task["source"] else "support_ids" if row["value"]==task["value"] else "counterclaim_ids"
         evidence[key].append(row["id"])
     evidence["alternatives"]=alternatives(task,rows)
+    evidence["experiment"]=experiment(db,task)
     evidence["status"]="awaiting_verification"
     evidence["limitation"]="Different source labels do not establish independence; pending claims are not verified evidence."
     db.execute("""INSERT INTO correction_reviews VALUES (?,?,?)
@@ -67,3 +68,23 @@ def alternatives(task,rows):
             "unknown_possible":True,
             "evidence_sufficient":False,
             "reason":"Local claims alone do not establish independent verification."}
+
+def experiment(db,task):
+    """Freeze a prediction before later records arrive; never infer independence."""
+    db.execute("""CREATE TABLE IF NOT EXISTS correction_experiments (
+        fact_id INTEGER PRIMARY KEY, subject TEXT NOT NULL, predicate TEXT NOT NULL,
+        expected TEXT NOT NULL, cutoff INTEGER NOT NULL, created TEXT NOT NULL)""")
+    cutoff=db.execute("SELECT coalesce(max(id),0) FROM knowledge_versions").fetchone()[0]
+    db.execute("INSERT OR IGNORE INTO correction_experiments VALUES (?,?,?,?,?,?)",
+        (task["id"],task["subject"],task["predicate"],task["value"],cutoff,now()))
+    plan=db.execute("SELECT * FROM correction_experiments WHERE fact_id=?",(task["id"],)).fetchone()
+    rows=db.execute("""SELECT id,value FROM knowledge_versions WHERE subject=? AND predicate=?
+        AND id>? AND status IN ('pending','current') ORDER BY id""",
+        (plan["subject"],plan["predicate"],plan["cutoff"])).fetchall()
+    matches=[r["id"] for r in rows if r["value"]==plan["expected"]]
+    mismatches=[r["id"] for r in rows if r["value"]!=plan["expected"]]
+    return {"expected":plan["expected"],"cutoff":plan["cutoff"],
+            "matching_claim_ids":matches,"contrary_claim_ids":mismatches,
+            "status":"mixed_claims" if matches and mismatches else "contrary_claims" if mismatches else "matching_claims" if matches else "awaiting_observation",
+            "limitation":"Later local claims are not independent experimental observations.",
+            "factual_promotion_authorized":False}
