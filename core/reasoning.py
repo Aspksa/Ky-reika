@@ -182,6 +182,8 @@ def prepare(message,path=DB_PATH):
     context["concept_relations"]=related_concepts(message,path)
     from .causal_analysis import relevant as causal_chains
     context["causal_chains"]=causal_chains(message,path)
+    from .strategic_intelligence import current as strategic_options
+    context["strategic_options"]=strategic_options(path)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     from .metacognition import assess as assess_thinking, record as record_thinking, apply as apply_thinking
