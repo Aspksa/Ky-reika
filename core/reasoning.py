@@ -118,6 +118,8 @@ def prepare(message,path=DB_PATH):
     terms=tokens(message)
     context["inductive_patterns"]=[p for p in hypotheses["patterns"] if terms & tokens(p["predicate"]+" "+p["value"])][:5]
     context["abductive_explanations"]=[e for e in hypotheses["explanations"] if terms & tokens(" ".join(e["observation"]))][:5]
+    from .uncertainty import assess
+    context["uncertainty"]=assess(context)
     context["strategy"]=select(message,context)
     return context
 
