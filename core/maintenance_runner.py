@@ -1,6 +1,7 @@
 """Retry failed maintenance on later cycles, without replaying partial writes immediately."""
 import logging
 from importlib import import_module
+from .resource_priority import wait_for_idle
 from .database import connect, now
 
 def execute(stages,path,record=None):
@@ -16,6 +17,7 @@ def execute(stages,path,record=None):
             status="skipped_dependency"
         else:
             try:
+                wait_for_idle()
                 action()
                 status="ok"
             except Exception:
