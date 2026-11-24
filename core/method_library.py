@@ -32,3 +32,10 @@ def record(db,report):
     else:
         revision=row["revision"]
     return {**selection,"revision":revision,"scope":"synthetic_graph_exercises"}
+
+def gate_transfer(selection,transfer):
+    """Do not authorize an experimental method without transfer validation."""
+    result=dict(selection)
+    if selection.get("status")=="validated" and (transfer.get("status")!="transfer_validated" or transfer.get("method")!=selection.get("method")):
+        result.update(method=None,status="suspended",reason="transfer_not_validated")
+    return result
