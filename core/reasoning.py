@@ -120,6 +120,12 @@ def prepare_dialogue(message,path=DB_PATH):
     context["epistemic_audit"]=assess(context)
     context["strategy"]=apply(context["strategy"],context["epistemic_audit"])
     if standard:
+        from .adaptation import adapt
+        from .learning import relevant as lessons
+        context["feedback_lessons"]=lessons(message,path)
+        context["strategy"]=adapt(context["strategy"],message,path)
+        if context["strategy"]["mode"]=="structured":
+            return prepare(message,path)
         from .inference import derive
         from .metalogic import coordinate
         context["derived_hypotheses"]=[x for x in derive(path) if tokens(message)&tokens(" ".join(x["conclusion"]))][:8]
@@ -127,6 +133,9 @@ def prepare_dialogue(message,path=DB_PATH):
         if context["metalogic"].get("conflicts") or any(r.get("issues") for r in context["epistemic_audit"].get("records",[])):
             return prepare(message,path)
         context["derived_hypotheses"]=context["metalogic"]["provisional_deductions"]
+        from .uncertainty import assess as assess_uncertainty
+        context["uncertainty"]=assess_uncertainty(context)
+        context["context_assessment"]={"local_evidence_present":bool(context["confirmed_knowledge"] or context["derived_hypotheses"]),"limitation":"Local evidence coverage is not proof of answer correctness."}
     return context
 
 def prepare(message,path=DB_PATH):
