@@ -2,6 +2,8 @@ import json
 import os
 import threading
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+import logging
 import secrets
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -56,6 +58,11 @@ class Handler(BaseHTTPRequestHandler):
                 model=payload["model"]
                 if model not in models:
                     return self.reply({"error":"Модель недоступна"},400)
+                req=Request(CLOUD_BASE+'/chat/completions',data=json.dumps({"model":model,"messages":[{"role":"user","content":"Ответь: OK"}],"max_completion_tokens":512,"stream":False}).encode(),headers={"Authorization":"Bearer "+key.strip(),"Content-Type":"application/json"})
+                with urlopen(req,timeout=90) as response:
+                    probe=json.loads(response.read(8*1024*1024))
+                if not (probe.get("choices") or [{}])[0].get("message",{}).get("content"):
+                    return self.reply({"error":"Модель не вернула текст. Выберите другую модель чата."},422)
                 with CLOUD_LOCK:
                     os.environ.update(CLOUD_API_BASE=CLOUD_BASE,CLOUD_API_KEY=key.strip(),CLOUD_MODEL=model)
                 return self.reply({"connected":True,"model":model})
@@ -63,7 +70,12 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(message,str) or not message.strip() or len(message)>12000:
                 return self.reply({"error":"Invalid message"},400)
             self.reply({"answer":gateway.chat(message)})
-        except Exception:
+        except HTTPError as exc:
+            return self.reply({"error":f"Cloud.ru HTTP {exc.code}: проверьте ключ, доступ к модели, баланс и параметры запроса."},502)
+        except (URLError,TimeoutError):
+            return self.reply({"error":"Cloud.ru недоступен или истекло время ожидания."},502)
+        except Exception as exc:
+            logging.error("Request failed: %s",type(exc).__name__)
             self.reply({"error":"Ошибка модели или конфигурации Cloud.ru. Проверьте настройки."},502)
 
 if __name__=="__main__":
