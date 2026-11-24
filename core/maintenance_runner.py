@@ -28,6 +28,13 @@ def execute(stages,path,record=None):
             record(name,status)
     return outcomes
 
+EVENT_INPUTS={
+    ("learning_review","refresh"):("feedback",),
+    ("discovery_lab","refresh"):("knowledge",),
+    ("theoretical_intelligence","refresh"):("knowledge","discovery"),
+    ("world_model","refresh"):("knowledge","discovery"),
+}
+
 def run(specs,path):
     with connect(path) as db:
         db.execute("""CREATE TABLE IF NOT EXISTS maintenance_status (
@@ -44,9 +51,10 @@ def run(specs,path):
             if module=="thought_tree" and function=="expand":
                 from .development_policy import policy
                 return target(path,limit=policy(path)["thought_budget"])
-            if module=="learning_review" and function=="refresh":
+            topics=EVENT_INPUTS.get((module,function))
+            if topics:
                 from .event_dispatch import run_if_changed
-                return run_if_changed(path,"learning",("feedback",),lambda: target(path))
+                return run_if_changed(path,module+"."+function,topics,lambda: target(path))
             return target(path)
         return invoke
     return execute([(name,action(module,function),deps) for name,module,function,deps in specs],path,record)

@@ -4,7 +4,7 @@ from .database import connect
 TABLES={"messages":"dialogue","memories":"memory","knowledge_versions":"knowledge",
         "response_feedback":"feedback","strategy_usage":"feedback","personality":"personality",
         "research_goals":"research","background_reviews":"research",
-        "prediction_checks":"research"}
+        "prediction_checks":"research","discovery_predictions":"discovery"}
 
 def install(path):
     with connect(path) as db:
