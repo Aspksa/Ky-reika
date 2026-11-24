@@ -22,6 +22,8 @@ def consolidate(path=DB_PATH):
     generate(path)
     from .development import grow
     grow(path)
+    from .rule_validation import refresh as validate_rules
+    validate_rules(path)
     from .thought_tree import expand
     from .development_policy import policy
     expand(path,limit=policy(path)['thought_budget'])
