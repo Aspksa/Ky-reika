@@ -162,6 +162,8 @@ def prepare(message,path=DB_PATH):
     context['rule_assessments']=rule_assessments(path)
     from .intellectual_goals import current as intellectual_goals
     context['intellectual_goals']=intellectual_goals(path)
+    from .research_synthesis import recent as research_syntheses
+    context['research_syntheses']=research_syntheses(path)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     from .metacognition import assess as assess_thinking, record as record_thinking, apply as apply_thinking
