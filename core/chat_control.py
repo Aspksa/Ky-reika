@@ -23,6 +23,17 @@ def commands(message):
     return list(dict.fromkeys(names)) if names and all(names) else []
 
 def execute(message,path=DB_PATH):
+    from .semantic_memory import parse, record
+    definition=parse(message)
+    if definition:
+        initialize(path)
+        term,meaning=definition
+        answer=f"Запомнила пользовательское значение «{term}»: {meaning}"
+        with connect(path) as db:
+            record(db,term,meaning,message)
+            db.execute("INSERT INTO messages(role,content,created_at) VALUES ('user',?,?)",(message,now()))
+            response_id=db.execute("INSERT INTO messages(role,content,created_at) VALUES ('assistant',?,?)",(answer,now())).lastrowid
+        return answer,response_id
     names=commands(message)
     if not names:
         return None
