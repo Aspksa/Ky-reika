@@ -38,7 +38,7 @@ def start(path=DB_PATH,interval=3600):
         raise ValueError("Interval must be at least 60 seconds")
     stop=Event()
     def run():
-        delay=interval
+        delay=0
         while not stop.wait(delay):
             try:
                 consolidate(path)
