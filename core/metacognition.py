@@ -19,6 +19,16 @@ def assess(context):
         guidance.append("Identify missing evidence; avoid treating hypotheses as facts.")
     if context.get("abductive_explanations"):
         guidance.append("Compare competing explanations and identify discriminating evidence.")
+    checks["disputed_causal_chains"]=sum(c.get("status")=="disputed" for c in context.get("causal_chains",[]))
+    checks["creative_hypotheses"]=len(context.get("creative_candidates",[]))
+    checks["observed_concept_relations"]=len(context.get("concept_relations",[]))
+    checks["strategic_risks"]=sum(len(g.get("risks",[])) for g in context.get("strategic_options",[]))
+    if checks["disputed_causal_chains"]:
+        guidance.append("Do not rely on disputed causal chains; identify conflicting premises and test alternatives.")
+    if checks["creative_hypotheses"] or checks["observed_concept_relations"]:
+        guidance.append("Distinguish observed associations and speculative combinations from verified facts; specify a discriminating test.")
+    if checks["strategic_risks"]:
+        guidance.append("Compare feasible strategic alternatives against actual constraints; do not invent resource estimates.")
     return {"checks":checks,"methods":meta.get("methods",[]),"guidance":guidance,
             "status":"review_required" if guidance else "no_detected_issue",
             "limitation":"Structural diagnostics, not a guarantee of correctness."}
