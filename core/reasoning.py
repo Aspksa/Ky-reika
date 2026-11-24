@@ -93,10 +93,11 @@ def reinforce(memory_id,reward,path=DB_PATH):
         c.audit(db,"reinforcement",{"id":memory_id,"reward":reward})
 
 def prepare_dialogue(message,path=DB_PATH):
-    """Fast path only for exact greetings and acknowledgements."""
+    """Fast path for exact social and identity questions; all other tasks retain full reasoning."""
     if message.strip().casefold().rstrip("!.?… ") not in {
         "привет","здравствуй","здравствуйте","доброе утро","добрый вечер",
-        "спасибо","благодарю","hi","hello","thanks"}:
+        "спасибо","благодарю","hi","hello","thanks",
+        "кто ты","как тебя зовут","кто я для тебя","как дела","как ты","доброй ночи"}:
         return prepare(message,path)
     setup(path)
     issues=c.check_consistency(path)
@@ -112,6 +113,8 @@ def prepare_dialogue(message,path=DB_PATH):
              "potential_conflicts":[x for x in conflicts(path) if tokens(message)&tokens(x["subject"]+" "+x["predicate"])][:5],
              "policy":{"external_actions":"propose_only","memory_is_untrusted":True},
              "context_mode":"brief_social_dialogue"}
+    if context["potential_conflicts"]:
+        return prepare(message,path)
     context["strategy"]=select(message,context)
     context["epistemic_audit"]=assess(context)
     context["strategy"]=apply(context["strategy"],context["epistemic_audit"])
