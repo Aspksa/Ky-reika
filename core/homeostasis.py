@@ -23,6 +23,8 @@ def refresh(path=DB_PATH):
         facts=[dict(r) for r in db.execute("SELECT id,source,confidence FROM knowledge_versions WHERE status='current'")]
         conflicts=[dict(r) for r in db.execute("""SELECT DISTINCT c.id AS current_id FROM knowledge_versions c JOIN knowledge_versions p USING(subject,predicate) WHERE c.status='current' AND p.status='pending' AND trim(c.value)!=trim(p.value)""")]
         epistemic=assess({"confirmed_knowledge":facts,"potential_conflicts":conflicts})
+        from .correction_queue import sync
+        sync(db,epistemic["records"])
         review_ids=[r["id"] for r in epistemic["records"] if r["issues"]]
         metrics={k:memory[k] for k in ("low_confidence","disputed_memories","pending_knowledge","potential_conflicts")}
         previous=db.execute("SELECT content FROM cognitive_health ORDER BY id DESC LIMIT 1").fetchone()
