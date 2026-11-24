@@ -241,9 +241,11 @@ def prepare(message,path=DB_PATH):
 def finish(user,answer,path=DB_PATH,strategy=None):
     if not answer.strip():
         raise ValueError("Empty answer")
-    from .database import add_message
-    add_message("user",user,path)
-    response_id=add_message("assistant",answer,path)
+    from .database import connect, now
+    with connect(path) as db:
+        timestamp=now()
+        db.execute("INSERT INTO messages(role,content,created_at) VALUES (?,?,?)",("user",user,timestamp))
+        response_id=db.execute("INSERT INTO messages(role,content,created_at) VALUES (?,?,?)",("assistant",answer,timestamp)).lastrowid
     if strategy is not None:
         from .adaptation import record as record_strategy
         record_strategy(response_id,user,strategy,path)
