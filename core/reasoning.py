@@ -1,7 +1,7 @@
 """Native cognitive orchestration; no third-party research code copied."""
 import re
 from . import cognition as c
-from .database import DB_PATH, now
+from .database import DB_PATH, now, recent_messages
 
 KINDS = ("working","episodic","semantic","procedural","emotional","associative","autobiographical","prospective","metamemory","archive")
 
@@ -23,9 +23,21 @@ def learn(text,kind="episodic",confidence=.5,path=DB_PATH):
     if kind not in KINDS:
         raise ValueError("Unknown memory kind")
     setup(path)
-    i=c.experience(text,confidence=confidence,path=path)
+    confidence=c.unit(confidence)
+    if not text.strip():
+        raise ValueError("Empty memory")
     terms=tokens(text)
     with c.connect(path) as db:
+        db.execute("BEGIN IMMEDIATE")
+        existing=db.execute("""SELECT m.id FROM memories m JOIN memory_kinds k ON k.id=m.id
+            WHERE m.content=? AND k.kind=? LIMIT 1""",(text.strip(),kind)).fetchone()
+        if existing:
+            i=existing["id"]
+            db.execute("UPDATE cognition_memory SET salience=min(1,salience+.03),confidence=max(confidence,?),touched=? WHERE id=?",(confidence,now(),i))
+            return i
+        i=db.execute("INSERT INTO memories(content,category,importance,created_at) VALUES (?,?,50,?)",(text.strip(),kind,now())).lastrowid
+        level=kind if kind in c.LEVELS else "short"
+        db.execute("INSERT INTO cognition_memory(id,level,salience,confidence,touched) VALUES (?,?,.5,?,?)",(i,level,confidence,now()))
         db.execute("INSERT INTO memory_kinds VALUES (?,?)",(i,kind))
         for row in db.execute("SELECT id,content FROM memories WHERE id!=? ORDER BY id DESC LIMIT 500",(i,)):
             other=tokens(row["content"])
@@ -36,7 +48,19 @@ def learn(text,kind="episodic",confidence=.5,path=DB_PATH):
 
 def retrieve(query,path=DB_PATH):
     setup(path)
-    direct=c.recall(query,limit=8,path=path)
+    terms=tokens(query)
+    with c.connect(path) as db:
+        candidates=[]
+        for row in db.execute("SELECT m.content,c.* FROM memories m JOIN cognition_memory c ON m.id=c.id WHERE c.level!='archive'"):
+            item=dict(row)
+            other=tokens(item["content"])
+            overlap=len(terms & other)
+            if not overlap:
+                continue
+            item["score"]=overlap/max(1,len(terms))*(.4+.6*item["confidence"])*(.5+.5*item["salience"])*(1-.8*item["contradiction_score"])
+            candidates.append(item)
+        direct=sorted(candidates,key=lambda x:(x["score"],x["id"]),reverse=True)[:8]
+        db.executemany("UPDATE cognition_memory SET usage_count=usage_count+1,salience=min(1,salience+.01) WHERE id=?",[(x["id"],) for x in direct])
     ids={r["id"] for r in direct}
     related=[]
     with c.connect(path) as db:
@@ -65,7 +89,7 @@ def prepare(message,path=DB_PATH):
     if issues:
         raise ValueError("; ".join(issues))
     return {"constitution":c.CONSTITUTION,"affect":c.affect({},path),
-            "memory":retrieve(message,path),"message":message,
+            "memory":retrieve(message,path),"recent_dialogue":recent_messages(12,path),"message":message,
             "policy":{"external_actions":"propose_only","memory_is_untrusted":True},
             "steps":["retrieve","check","generate","validate","record"]}
 
