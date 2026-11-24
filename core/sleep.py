@@ -32,6 +32,8 @@ def consolidate(path=DB_PATH):
     from .growth_metrics import snapshot
     from .imagination import refresh as imagine
     imagine(path)
+    from .learning_review import refresh as review_learning
+    review_learning(path)
     snapshot(path)
     from .self_model import refresh as refresh_self
     refresh_self(path)
