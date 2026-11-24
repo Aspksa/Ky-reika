@@ -130,6 +130,9 @@ def prepare(message,path=DB_PATH):
     context["normative_epistemic"]=assess_norms(context)
     from .revision import audit as audit_deductions
     context["deduction_audit"]=audit_deductions(path)
+    from .metalogic import coordinate
+    context["metalogic"]=coordinate(message,context)
+    context["derived_hypotheses"]=context["metalogic"]["provisional_deductions"]
     context["strategy"]=select(message,context)
     return context
 
