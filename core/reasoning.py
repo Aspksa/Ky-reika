@@ -128,6 +128,8 @@ def prepare(message,path=DB_PATH):
     context["analogical_dialectical"]=compare_positions(message,context)
     from .norms import assess as assess_norms
     context["normative_epistemic"]=assess_norms(context)
+    from .revision import audit as audit_deductions
+    context["deduction_audit"]=audit_deductions(path)
     context["strategy"]=select(message,context)
     return context
 
