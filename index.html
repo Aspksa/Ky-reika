@@ -4,9 +4,11 @@
 *{box-sizing:border-box}body{margin:0;background:#101116;color:#eee;font:16px system-ui}
 #avatar{position:fixed;right:20px;bottom:20px;width:min(180px,35vw);padding:0;border:0;background:none;cursor:grab;touch-action:none;z-index:1001}#avatar img{width:100%;display:block;pointer-events:none;user-select:none}#avatar:active{cursor:grabbing}
 #chat{position:fixed;inset:auto 16px 16px auto;width:min(440px,calc(100vw - 32px));height:min(600px,80dvh);background:#191a20;border:1px solid #393941;border-radius:18px;padding:16px;z-index:1000;display:flex;flex-direction:column;gap:12px}#chat[hidden]{display:none}#close{align-self:flex-end}#messages{flex:1;overflow:auto;white-space:pre-wrap}textarea{width:100%;resize:vertical;background:#24252c;color:white;border:1px solid #444;border-radius:10px;padding:12px}button{color:inherit;background:#30313a;border:0;border-radius:8px;padding:10px;cursor:pointer}
+dialog{width:min(420px,92vw);background:#191a20;color:#eee;border:1px solid #444;border-radius:16px;padding:20px}dialog::backdrop{background:#0009}dialog input,dialog select{width:100%;padding:10px;margin:8px 0 14px;background:#24252c;color:white;border:1px solid #555;border-radius:8px}dialog button{margin:4px}#cloud-status{overflow-wrap:anywhere}
 </style></head><body>
 <button id="avatar" aria-label="Открыть чат" aria-expanded="false"><img src="assets/avatar.png" alt="Кюрейка" draggable="false"></button>
 <section id="chat" hidden aria-label="Чат"><button id="close" aria-label="Закрыть чат">✕</button><div id="messages" role="log"></div><textarea placeholder="Сообщение…"></textarea><button id="send">Отправить</button></section>
+<dialog id="cloud"><h2>Подключение Cloud.ru</h2><label for="cloud-key">API-ключ</label><input id="cloud-key" type="password" autocomplete="off" spellcheck="false"><button id="load-models">Загрузить модели</button><label for="cloud-model">Модель</label><select id="cloud-model" disabled></select><button id="connect-cloud" disabled>Подключить</button><button id="close-cloud">Закрыть</button><p id="cloud-status" role="status"></p></dialog>
 <script>
 const a=document.querySelector('#avatar'),c=document.querySelector('#chat');
 let drag=null;
@@ -24,4 +26,14 @@ addEventListener('resize',()=>{const r=a.getBoundingClientRect();place(r.left,r.
 a.querySelector('img').addEventListener('load',()=>{const r=a.getBoundingClientRect();place(r.left,r.top)});
 const send=document.querySelector('#send'),input=c.querySelector('textarea'),log=document.querySelector('#messages');
 send.onclick=async()=>{const message=input.value.trim();if(!message)return;send.disabled=true;input.value='';log.textContent+='Вы: '+message+'\n';try{const token=document.querySelector('meta[name="session-token"]')?.content;if(!token)throw Error('Запустите webapp.py');const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json','X-Session-Token':token},body:JSON.stringify({message})});const data=await r.json();log.textContent+=(r.ok?'Кюрейка: '+data.answer:data.error)+'\n';}catch(e){log.textContent+='Ошибка подключения.\n'}finally{send.disabled=false;log.scrollTop=log.scrollHeight}};
+const cloud=document.querySelector('#cloud'),key=document.querySelector('#cloud-key'),model=document.querySelector('#cloud-model'),load=document.querySelector('#load-models'),connect=document.querySelector('#connect-cloud'),status=document.querySelector('#cloud-status');
+function openCloud(e){e.preventDefault();if(!cloud.open)cloud.showModal()}
+a.addEventListener('contextmenu',openCloud);
+c.addEventListener('contextmenu',openCloud);
+document.querySelector('#close-cloud').onclick=()=>cloud.close();
+cloud.addEventListener('close',()=>{key.value='';model.replaceChildren();model.disabled=true;connect.disabled=true});
+key.addEventListener('input',()=>{model.replaceChildren();model.disabled=true;connect.disabled=true});
+async function cloudRequest(action,payload){const r=await fetch('/api/cloud/'+action,{method:'POST',headers:{'Content-Type':'application/json','X-Session-Token':document.querySelector('meta[name="session-token"]').content},body:JSON.stringify(payload)});const data=await r.json();if(!r.ok)throw Error(data.error);return data}
+load.onclick=async()=>{if(!key.value.trim()){status.textContent='Введите API-ключ';return}load.disabled=true;key.disabled=true;connect.disabled=true;model.disabled=true;status.textContent='Загрузка моделей…';try{const data=await cloudRequest('models',{key:key.value});model.replaceChildren();for(const id of data.models)model.add(new Option(id,id));model.disabled=!data.models.length;connect.disabled=!data.models.length;status.textContent='Доступно моделей: '+data.models.length}catch(e){status.textContent=e.message}finally{load.disabled=false;key.disabled=false}};
+connect.onclick=async()=>{connect.disabled=true;load.disabled=true;key.disabled=true;model.disabled=true;try{const data=await cloudRequest('connect',{key:key.value,model:model.value});status.textContent='Подключено: '+data.model;key.value='';model.replaceChildren()}catch(e){status.textContent=e.message;connect.disabled=false;model.disabled=false}finally{load.disabled=false;key.disabled=false}};
 </script></body></html>
