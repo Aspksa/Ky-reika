@@ -31,5 +31,11 @@ def run(specs,path):
                 failures=CASE WHEN excluded.status='failed' THEN failures+1 WHEN excluded.status='ok' THEN 0 ELSE failures END,
                 updated=excluded.updated""",(name,status,int(status=="failed"),now()))
     def action(module,function):
-        return lambda: getattr(import_module("."+module,__package__),function)(path)
+        def invoke():
+            target=getattr(import_module("."+module,__package__),function)
+            if module=="thought_tree" and function=="expand":
+                from .development_policy import policy
+                return target(path,limit=policy(path)["thought_budget"])
+            return target(path)
+        return invoke
     return execute([(name,action(module,function),deps) for name,module,function,deps in specs],path,record)
