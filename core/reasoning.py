@@ -208,6 +208,8 @@ def prepare(message,path=DB_PATH):
     from .epistemic_intelligence import assess as epistemic_audit, apply as epistemic_apply
     context["epistemic_audit"]=epistemic_audit(context)
     context["strategy"]=epistemic_apply(context["strategy"],context["epistemic_audit"])
+    from .correction_queue import recent as correction_tasks
+    context["correction_tasks"]=correction_tasks(path)
     return context
 
 def finish(user,answer,path=DB_PATH,strategy=None):
