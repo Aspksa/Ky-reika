@@ -12,7 +12,7 @@ class SemanticMemoryTests(unittest.TestCase):
             self.assertEqual(relevant("Лиса",path)[0]["meaning"],"имя проекта")
             execute('Уточни значение «лиса»: кодовое имя',path)
             self.assertEqual(relevant("лиса",path)[0]["meaning"],"кодовое имя")
-            self.assertEqual(relevant("лисам",path),[])
+            self.assertEqual(relevant("лисамба",path),[])
 
     def test_natural_definition(self):
         from core.semantic_memory import parse

@@ -34,10 +34,12 @@ def relevant(message,path=DB_PATH):
         rows=db.execute("""SELECT d.term,d.meaning,d.id FROM semantic_definitions d
             WHERE d.id=(SELECT max(id) FROM semantic_definitions WHERE term=d.term)
             ORDER BY d.id DESC""")
+        from .morphology import matches
         result=[]
         for row in rows:
-            if re.search(r"(?<!\w)"+re.escape(row["term"])+r"(?!\w)",query):
-                result.append({**dict(row),"authority":"user_defined_context_only"})
+            exact=bool(re.search(r"(?<!\w)"+re.escape(row["term"])+r"(?!\w)",query))
+            if exact or matches(row["term"],query):
+                result.append({**dict(row),"authority":"user_defined_context_only","match":"exact" if exact else "morphological_candidate"})
                 if len(result)>=20:
                     break
         return result
