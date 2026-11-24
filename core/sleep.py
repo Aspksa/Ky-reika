@@ -12,59 +12,35 @@ def consolidate(path=DB_PATH):
             WHERE source IN (SELECT id FROM cognition_memory WHERE usage_count>=3 AND level!='archive')
               AND target IN (SELECT id FROM cognition_memory WHERE usage_count>=3 AND level!='archive')""")
         cognition.audit(db,"sleep_completed",{"proposals":proposals})
-    from .memory_graph import consolidate as consolidate_graph
-    consolidate_graph(path)
-    from .reflection import record
-    record(path)
-    from .revision import revise
-    revise(path)
-    from .initiative import generate
-    generate(path)
-    from .development import grow
-    grow(path)
-    from .rule_validation import refresh as validate_rules
-    validate_rules(path)
-    from .thought_tree import expand
-    from .development_policy import policy
-    expand(path,limit=policy(path)['thought_budget'])
-    from .research import refresh
-    refresh(path)
-    from .creativity import generate as generate_ideas
-    generate_ideas(path)
-    from .growth_metrics import snapshot
-    from .imagination import refresh as imagine
-    imagine(path)
-    from .learning_review import refresh as review_learning
-    review_learning(path)
-    snapshot(path)
-    from .self_model import refresh as refresh_self
-    refresh_self(path)
-    from .background_reasoning import run as background_review
-    background_review(path)
-    from .deep_inquiry import advance
-    advance(path)
-    from .followup_research import refresh as refresh_followups
-    refresh_followups(path)
-    from .followup_execution import run as execute_followups
-    execute_followups(path)
-    from .research_synthesis import refresh as synthesize_research
-    synthesize_research(path)
-    from .theory_memory import refresh as refresh_theories
-    refresh_theories(path)
-    from .theory_review import run as review_theories
-    review_theories(path)
-    from .prediction_checks import refresh as check_predictions
-    check_predictions(path)
-    from .prediction_learning import refresh as learn_predictions
-    learn_predictions(path)
-    from .intellectual_identity import refresh as refresh_intellectual_identity
-    refresh_intellectual_identity(path)
-    from .research_goals import refresh as refresh_goals
-    refresh_goals(path)
-    from .intellectual_goals import refresh as prioritize_goals
-    prioritize_goals(path)
-    from .homeostasis import refresh as maintain_health
-    maintain_health(path)
+    from .maintenance_runner import run
+    run([
+        ("graph","memory_graph","consolidate",()),
+        ("reflection","reflection","record",()),
+        ("revision","revision","revise",()),
+        ("initiative","initiative","generate",()),
+        ("growth","development","grow",()),
+        ("rules","rule_validation","refresh",("growth",)),
+        ("thoughts","thought_tree","expand",("growth",)),
+        ("research","research","refresh",("thoughts",)),
+        ("creativity","creativity","generate",("growth",)),
+        ("imagination","imagination","refresh",()),
+        ("learning","learning_review","refresh",()),
+        ("metrics","growth_metrics","snapshot",("thoughts",)),
+        ("self","self_model","refresh",("reflection",)),
+        ("background","background_reasoning","run",("research",)),
+        ("inquiry","deep_inquiry","advance",("background",)),
+        ("followups","followup_research","refresh",("inquiry",)),
+        ("evidence","followup_execution","run",("followups",)),
+        ("synthesis","research_synthesis","refresh",("evidence",)),
+        ("theories","theory_memory","refresh",("synthesis",)),
+        ("reviews","theory_review","run",("theories",)),
+        ("predictions","prediction_checks","refresh",("reviews",)),
+        ("lessons","prediction_learning","refresh",("predictions",)),
+        ("identity","intellectual_identity","refresh",("lessons",)),
+        ("goals","research_goals","refresh",("research",)),
+        ("priorities","intellectual_goals","refresh",("goals",)),
+        ("health","homeostasis","refresh",()),
+    ],path)
     return proposals
 
 def start(path=DB_PATH,interval=3600):
