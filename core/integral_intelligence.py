@@ -22,6 +22,9 @@ def coordinate(message,context):
         add("direct","no specific method signal")
     structured=context.get("strategy",{}).get("mode")=="structured"
     deep=any(m["method"] in ("evidence_audit","causal","strategic","abductive") for m in methods)
-    return {"methods":methods,"depth":"deep" if deep or (structured and len(methods)>1) else "focused" if structured or methods[0]["method"]!="direct" else "direct",
+    plan={"methods":methods,"depth":"deep" if deep or (structured and len(methods)>1) else "focused" if structured or methods[0]["method"]!="direct" else "direct",
             "guidance":"Combine selected methods only when relevant. Distinguish evidence, deductions and hypotheses. Method selection is heuristic, not measured intelligence.",
             "external_actions":"propose_only"}
+
+    from .targeted_practice import adapt
+    return adapt(plan,context.get("intelligence_training",{}))
