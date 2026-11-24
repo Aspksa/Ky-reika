@@ -27,7 +27,11 @@ def refresh(path=DB_PATH):
         report["method_transfer"]=transfer(report["method_selection"],seed+3000017)
         from .structural_reasoning import evaluate as structural
         report["structural_reasoning"]=structural(seed+4000037)
+        from .method_library import gate_transfer
+        report["effective_method"]=gate_transfer(report["method_selection"],report["method_transfer"])
         report["priorities"]=[{"skill":k,"action":"inspect failed cases and validate corrections"} for k in sorted(set(report["weaknesses"]+baseline["weaknesses"]))]
+        if report["effective_method"]["status"]=="suspended":
+            report["priorities"].append({"skill":"method_transfer","action":"Investigate failed validation before reuse"})
         report["status"]="practice_required" if report["priorities"] else "local_checks_passed"
         db.execute("INSERT INTO intelligence_training(report,created) VALUES (?,?)",(json.dumps(report),now()))
         db.execute("DELETE FROM intelligence_training WHERE id NOT IN (SELECT id FROM intelligence_training ORDER BY id DESC LIMIT 1000)")
