@@ -111,6 +111,8 @@ def prepare(message,path=DB_PATH):
     context["next_plan_steps"]=active(path)
     from .initiative import pending
     context["initiative_proposals"]=pending(path)
+    from .inference import derive
+    context["derived_hypotheses"]=[x for x in derive(path) if tokens(message) & tokens(" ".join(x["conclusion"]))][:8]
     context["strategy"]=select(message,context)
     return context
 
