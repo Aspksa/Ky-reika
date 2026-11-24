@@ -18,12 +18,16 @@ def grow(path=DB_PATH):
     setup(path)
     hypotheses=analyze(path)
     candidates=[("pattern",p) for p in hypotheses["patterns"]]+[("explanation",e) for e in hypotheses["explanations"]]
+    from .rule_learning import discover
+    candidates.extend(("rule",p) for p in discover(path))
     active=set()
     with connect(path) as db:
         db.execute("BEGIN IMMEDIATE")
-        for kind,item in candidates[:100]:
+        for kind,item in candidates[:150]:
             content=json.dumps(item,ensure_ascii=False,sort_keys=True)
-            identity=[kind,item["predicate"],item["value"]] if kind=="pattern" else [kind,item["observation"],item["rule"]]
+            identity=[kind,item["predicate"],item["value"]] if kind=="pattern" else [kind,item["observation"],item["rule"]] if kind=="explanation" else []
+            if kind=="rule":
+                identity=[kind,item["premise"],item["conclusion"]]
             key=hashlib.sha256(json.dumps(identity,ensure_ascii=False).encode()).hexdigest()
             active.add(key)
             db.execute("""INSERT INTO development_thoughts(fingerprint,kind,content,status,created,updated)
