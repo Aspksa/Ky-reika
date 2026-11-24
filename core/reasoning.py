@@ -141,6 +141,8 @@ def prepare(message,path=DB_PATH):
     context["research_agenda"]=agenda(path)
     from .creativity import recent as creative_ideas
     context["creative_ideas"]=creative_ideas(path)
+    from .growth_metrics import latest as growth_report
+    context["growth_metrics"]=growth_report(path)
     from .adaptation import adapt
     context["strategy"]=adapt(select(message,context),message,path)
     return context
