@@ -84,6 +84,8 @@ def prepare_context(message,path=DB_PATH):
     context.pop("message",None)
     from .dialogue_context import history
     context["conversation_history"]=history(path,message)
+    from .language_context import analyze
+    context["language_context"]=analyze(message,context["conversation_history"])
     from .dialogue_style import profile
     context["dialogue_style"]=profile(message,path)
     from .integral_intelligence import coordinate

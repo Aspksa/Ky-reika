@@ -2,7 +2,7 @@
 import json
 import re
 
-CORE=("dialogue_style","constitution","policy","self_model","affect","strategy","integral_intelligence",
+CORE=("language_context","dialogue_style","constitution","policy","self_model","affect","strategy","integral_intelligence",
       "confirmed_knowledge","potential_conflicts","metalogic","epistemic_audit",
       "uncertainty","memory","recent_dialogue","cognitive_integrity")
 METHOD_FIELDS={
