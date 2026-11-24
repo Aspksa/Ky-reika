@@ -106,7 +106,8 @@ def prepare(message,path=DB_PATH):
             "policy":{"external_actions":"propose_only","memory_is_untrusted":True},
             "steps":["retrieve","check","generate","validate","record"]}
     from .strategy import select
-    from .planning import active
+    from .planning import active, progress
+    context["goal_progress"]=progress(path)[:10]
     context["next_plan_steps"]=active(path)
     from .initiative import pending
     context["initiative_proposals"]=pending(path)
